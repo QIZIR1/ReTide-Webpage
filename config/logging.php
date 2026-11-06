@@ -127,6 +127,13 @@ return [
             'path' => env('LOG_EMERGENCY_PATH', storage_path('logs/laravel.log')),
         ],
 
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.log'),
+            'level' => 'info',
+            'days' => 30,
+        ],
+
     ],
 
 ];
