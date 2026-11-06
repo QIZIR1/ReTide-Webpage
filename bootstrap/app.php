@@ -8,6 +8,7 @@
 
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\RedirectIfAdmin;
+use App\Http\Middleware\SecurityHeadersMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(SecurityHeadersMiddleware::class);
+
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             'not_admin' => RedirectIfAdmin::class,
