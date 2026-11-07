@@ -1,0 +1,68 @@
+name: ReTide DevSecOps CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    name: Build, Audit & Test
+    runs-on: ubuntu-latest
+
+    services:
+      # Optional: In-memory service or SQLite
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, sqlite3, pdo_sqlite, bcmath
+          coverage: xdebug
+
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      - name: Install Composer Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Set Storage Permissions
+        run: chmod -R 777 storage bootstrap/cache
+
+      # DevSecOps Step 1: Automated Dependency Vulnerability Check
+      # Note: || true is added so CI continues to testing while reporting security advisories for review
+      - name: DevSecOps - Composer Dependency Audit
+        run: composer audit --format=plain || true
+
+      # DevSecOps Step 2: Automated Unit & Feature Testing with Coverage Report
+      - name: Execute Tests (PHPUnit) with Clover Coverage
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
+          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+        run: vendor/bin/phpunit --coverage-clover=coverage.xml --log-junit=test-report.xml
+
+      # DevSecOps Step 3: SonarQube / SonarCloud Code Quality & Vulnerability Scan
+      - name: SonarCloud / SonarQube Quality Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.sources=app,config,routes
+            -Dsonar.tests=tests
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.php.tests.reportPath=test-report.xml
