@@ -7,6 +7,7 @@ use App\Models\DonationUpdate;
 use App\Models\Payment;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
 
@@ -43,12 +44,15 @@ class DonationController extends Controller
             'message' => 'nullable|string|max:500',
         ]);
 
+        $orderId = 'DON-'.time().'-'.auth()->id();
+
         $donation = Donation::create([
             'name' => $request->name ?: auth()->user()->name,
             'email' => $request->email ?: auth()->user()->email,
             'amount' => $request->amount,
             'message' => $request->message,
             'user_id' => auth()->id(),
+            'order_id' => $orderId,
         ]);
 
         // Set Midtrans configuration
@@ -57,8 +61,6 @@ class DonationController extends Controller
         Config::$isProduction = config('midtrans.is_production');
         Config::$isSanitized = config('midtrans.is_sanitized');
         Config::$is3ds = config('midtrans.is_3ds');
-
-        $orderId = 'DON-'.time().'-'.auth()->id();
 
         $params = [
             'transaction_details' => [
@@ -110,10 +112,25 @@ class DonationController extends Controller
 
             return redirect()->away($redirectUrl);
         } catch (\Exception $e) {
-            \Log::error('Midtrans Snap Error (Donation): '.$e->getMessage());
+            Log::error('Midtrans Snap Error (Donation): '.$e->getMessage());
 
-            return back()->with('error', 'Failed to create donation payment: '.$e->getMessage());
+            return back()->with('error', 'Gagal membuat pembayaran donasi. Silakan coba lagi.');
         }
+    }
+
+    public function receipt(Donation $donation)
+    {
+        // Hanya pemilik donasi
+        abort_if((int) $donation->user_id !== (int) auth()->id(), 403);
+
+        // Hanya donasi yang sudah lunas
+        abort_unless($donation->isPaid(), 404);
+
+        if (! $donation->receipt_code) {
+            $donation->update(['receipt_code' => Donation::generateReceiptCode()]);
+        }
+
+        return view('donation.receipt', compact('donation'));
     }
 
     public function success()

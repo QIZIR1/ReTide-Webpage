@@ -202,6 +202,9 @@
                 @if($donation->message)
                   <p class="text-gray-400 text-sm mb-3">"{{ $donation->message }}"</p>
                 @endif
+                @if($donation->isPaid())
+                <a href="{{ route('donation.receipt', $donation) }}" class="inline-block mb-3 text-xs text-[#63cfc0] hover:text-white">Lihat Receipt</a>
+                @endif
                 <div class="flex justify-between items-center text-sm">
                   <span class="text-gray-500">{{ $donation->created_at->diffForHumans() }}</span>
                   <button class="toggle-timeline-link text-[#63cfc0] font-medium hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#63cfc0] rounded transition-colors" data-donation-id="{{ $donation->id }}">Lihat Perjalanan</button>
