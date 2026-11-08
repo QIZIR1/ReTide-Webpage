@@ -27,5 +27,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@example.com',
             'role' => 'admin',
         ]);
+
+        $this->call(MarketplaceProductSeeder::class);
     }
 }

@@ -32,8 +32,10 @@ class MarketplaceProductTest extends TestCase
         $this->assertEquals([
             'name',
             'description',
+            'category',
             'price',
             'stock',
+            'sold_count',
             'image_path',
         ], $product->getFillable());
     }

@@ -87,6 +87,19 @@
             @enderror
         </div>
         <div>
+            <label for="category" class="block mb-2.5 text-sm font-medium text-heading">Category</label>
+            <select id="category" name="category"
+                class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3">
+                <option value="">-- Uncategorized --</option>
+                @foreach(\App\Models\MarketplaceProduct::CATEGORIES as $value => $label)
+                    <option value="{{ $value }}" @selected(old('category') === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            @error('category')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
             <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Price</label>
             <input type="number" id="price" name="price" value="{{ old('price') }}"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 placeholder:text-body"

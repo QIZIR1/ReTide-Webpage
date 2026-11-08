@@ -207,4 +207,72 @@ class MarketplaceFeatureEnhancementTest extends TestCase
 
         $this->assertDatabaseCount('payments', 0);
     }
+
+    public function test_filter_marketplace_by_category_and_price_range(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $cheapBag = $this->createProduct(['name' => 'Cheap Bag', 'category' => 'bags', 'price' => 30000]);
+        $midBag = $this->createProduct(['name' => 'Mid Bag', 'category' => 'bags', 'price' => 80000]);
+        $this->createProduct(['name' => 'Luxury Bag', 'category' => 'bags', 'price' => 250000]);
+        $this->createProduct(['name' => 'Ocean Bottle', 'category' => 'drinkware', 'price' => 50000]);
+
+        $response = $this->actingAs($user)->get(route('marketplace.index', [
+            'category' => 'bags',
+            'min_price' => 25000,
+            'max_price' => 100000,
+            'sort' => 'price_asc',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertViewHas('products', function ($products) use ($cheapBag, $midBag) {
+            return $products->pluck('id')->all() === [$cheapBag->id, $midBag->id];
+        });
+        $response->assertViewHas('filters', [
+            'category' => 'bags',
+            'min_price' => 25000.0,
+            'max_price' => 100000.0,
+            'sort' => 'price_asc',
+        ]);
+        $response->assertSee('Mid Bag');
+        $response->assertDontSee('Luxury Bag');
+        $response->assertDontSee('Ocean Bottle');
+
+        // Reversed price range is swapped instead of returning nothing
+        $this->actingAs($user)
+            ->get(route('marketplace.index', ['category' => 'bags', 'min_price' => 100000, 'max_price' => 25000]))
+            ->assertViewHas('products', fn ($products) => $products->count() === 2);
+    }
+
+    public function test_sort_marketplace_by_best_selling_and_ignore_invalid_filters(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+
+        $low = $this->createProduct(['name' => 'Low Seller', 'sold_count' => 3]);
+        $top = $this->createProduct(['name' => 'Top Seller', 'sold_count' => 120]);
+        $mid = $this->createProduct(['name' => 'Mid Seller', 'sold_count' => 40]);
+
+        $this->actingAs($user)
+            ->get(route('marketplace.index', ['sort' => 'best_selling']))
+            ->assertStatus(200)
+            ->assertViewHas('products', fn ($products) => $products->pluck('id')->all() === [$top->id, $mid->id, $low->id]);
+
+        // Unknown category / sort and non-numeric price are ignored, page still loads all products
+        $this->actingAs($user)
+            ->get(route('marketplace.index', [
+                'category' => 'weapons',
+                'sort' => 'DROP TABLE',
+                'min_price' => 'abc',
+            ]))
+            ->assertStatus(200)
+            ->assertViewHas('filters', ['category' => null, 'min_price' => null, 'max_price' => null, 'sort' => 'newest'])
+            ->assertViewHas('products', fn ($products) => $products->count() === 3);
+
+        // Empty form fields (submitted as blank strings) behave like "no filter"
+        $this->actingAs($user)
+            ->get('/marketplace?category=&min_price=&max_price=&sort=newest')
+            ->assertStatus(200)
+            ->assertViewHas('filters', ['category' => null, 'min_price' => null, 'max_price' => null, 'sort' => 'newest'])
+            ->assertViewHas('products', fn ($products) => $products->count() === 3);
+    }
 }
