@@ -252,6 +252,31 @@
                     </div>
                 </section>
 
+                <!-- Transaction History & Export Section -->
+                <section class="bg-surface border border-border rounded-xl overflow-hidden">
+                    <div class="px-6 py-5 border-b border-border bg-[#0a0a0a]">
+                        <h2 class="text-lg font-medium text-white">Riwayat Transaksi</h2>
+                        <p class="text-sm text-gray-500 mt-1">Unduh seluruh catatan transaksi dan donasi Anda dalam format file CSV.</p>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div class="max-w-md">
+                                <p class="text-sm text-gray-300 font-medium">Export Riwayat Pembelian & Donasi</p>
+                                <p class="text-xs text-gray-500 mt-1">File CSV berisi daftar Order ID, tipe transaksi, status, nominal pembayaran, dan tanggal pembuatan.</p>
+                            </div>
+                            <div>
+                                <a href="{{ route('account.export') }}" class="btn-primary inline-flex items-center space-x-2 text-sm px-5 py-3 rounded-lg shadow-md font-semibold hover:scale-105 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Download Riwayat (CSV)</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Danger Zone -->
                 <section class="bg-surface border border-border rounded-xl overflow-hidden">
                     <div class="px-6 py-5 border-b border-border bg-[#0a0a0a]">
