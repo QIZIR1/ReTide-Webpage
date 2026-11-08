@@ -183,4 +183,10 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
+            -Dsonar.organization=QIZIR1
+            -Dsonar.projectKey=QIZIR1_ReTide-Webpage
+            -Dsonar.sources=app,config,routes
+            -Dsonar.tests=tests
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.php.tests.reportPath=junit.xml
             -Dsonar.qualitygate.wait=true
