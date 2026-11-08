@@ -21,14 +21,24 @@ class DonationController extends Controller
         $totalDonations = Donation::sum('amount');
 
         // 3. Goal & Progress
-        $donationGoal = 100000000; // Rp 100.000.000
+        $donationGoal = config('donation.goal');
         $progressPercentage = min(($totalDonations / $donationGoal) * 100, 100);
 
-        return view('donation', compact('donations', 'totalDonations', 'donationGoal', 'progressPercentage'));
+        // 4. Ringkasan donasi milik user yang login
+        $summary = [
+            'total' => $donations->sum('amount'),
+            'count' => $donations->count(),
+            'last' => $donations->first(),
+        ];
+
+        return view('donation', compact('donations', 'totalDonations', 'donationGoal', 'progressPercentage', 'summary'));
     }
 
     public function updates(Donation $donation)
     {
+        // Mitigasi IDOR: hanya pemilik donasi yang boleh melihat update
+        abort_if((int) $donation->user_id !== (int) auth()->id(), 403);
+
         $updates = DonationUpdate::where('donation_id', $donation->id)->latest()->get();
 
         return response()->json($updates);
