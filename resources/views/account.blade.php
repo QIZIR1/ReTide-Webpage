@@ -109,9 +109,19 @@
 
     <!-- Main Content -->
     <main class="flex-grow pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
-        <div class="mb-10">
-            <h1 class="text-3xl font-semibold text-white mb-2">Account Settings</h1>
-            <p class="text-gray-400">Manage your profile information and security preferences.</p>
+        <div class="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-semibold text-white mb-2">Account Settings</h1>
+                <p class="text-gray-400">Manage your profile information and security preferences.</p>
+            </div>
+            <div>
+                <a href="{{ route('account.export') }}" class="btn-primary inline-flex items-center space-x-2 text-sm px-4 py-2.5 rounded-lg shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Export Riwayat (CSV)</span>
+                </a>
+            </div>
         </div>
 
         @if(session('success'))

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -207,6 +208,92 @@ class UserProfileSecurityTest extends TestCase
 
         Storage::disk('public')->assertExists($newPath);
         Storage::disk('public')->assertMissing($oldPath);
+    }
+
+    /**
+     * Test 10: User dapat mengekspor riwayat transaksi mereka sendiri ke CSV,
+     * dan data transaksi milik user lain TIDAK bocor ke file ekspor (mencegah IDOR).
+     */
+    public function test_user_can_export_transaction_history_and_no_data_leakage(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        // Transaksi milik User A
+        Payment::create([
+            'user_id' => $userA->id,
+            'order_id' => 'ORD-USER-A-001',
+            'payment_type' => 'marketplace',
+            'status' => 'settlement',
+            'gross_amount' => 150000.00,
+        ]);
+
+        Payment::create([
+            'user_id' => $userA->id,
+            'order_id' => 'ORD-USER-A-002',
+            'payment_type' => 'donation',
+            'status' => 'pending',
+            'gross_amount' => 50000.00,
+        ]);
+
+        // Transaksi milik User B (harus TIDAK ada di file ekspor User A)
+        Payment::create([
+            'user_id' => $userB->id,
+            'order_id' => 'ORD-USER-B-SECRET-999',
+            'payment_type' => 'marketplace',
+            'status' => 'settlement',
+            'gross_amount' => 999999.00,
+        ]);
+
+        $response = $this->actingAs($userA)->get('/account/export');
+
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', $response->headers->get('content-type'));
+
+        $content = $response->streamedContent();
+
+        // Verifikasi header CSV
+        $this->assertStringContainsString('order_id,tipe,status,nominal,tanggal', $content);
+
+        // Verifikasi data milik User A ada
+        $this->assertStringContainsString('ORD-USER-A-001', $content);
+        $this->assertStringContainsString('ORD-USER-A-002', $content);
+
+        // Verifikasi IDOR Prevention: data milik User B sama sekali tidak boleh ada
+        $this->assertStringNotContainsString('ORD-USER-B-SECRET-999', $content);
+    }
+
+    /**
+     * Test 11: User dapat mengekspor riwayat transaksi dalam format JSON jika parameter format=json.
+     */
+    public function test_user_can_export_transaction_history_as_json(): void
+    {
+        $user = User::factory()->create();
+
+        Payment::create([
+            'user_id' => $user->id,
+            'order_id' => 'ORD-JSON-TEST-001',
+            'payment_type' => 'donation',
+            'status' => 'settlement',
+            'gross_amount' => 75000.00,
+        ]);
+
+        $response = $this->actingAs($user)->get('/account/export?format=json');
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'order_id' => 'ORD-JSON-TEST-001',
+        ]);
+    }
+
+    /**
+     * Test 12: Pengunjung yang belum login (guest) tidak dapat mengekspor riwayat.
+     */
+    public function test_guest_cannot_export_transaction_history(): void
+    {
+        $response = $this->get('/account/export');
+
+        $response->assertRedirect('/login');
     }
 }
 

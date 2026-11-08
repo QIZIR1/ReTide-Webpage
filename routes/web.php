@@ -140,6 +140,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Account Page CRUD
         Route::get('/account', [AccountController::class, 'index'])->name('account.index');
+        Route::get('/account/export', [AccountController::class, 'export'])->name('account.export');
         Route::put('/account', [AccountController::class, 'update'])->name('account.update');
         Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
 

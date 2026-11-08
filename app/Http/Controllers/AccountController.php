@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,34 @@ class AccountController extends Controller
         $user = Auth::user();
 
         return view('account', compact('user'));
+    }
+
+    // Mengunduh riwayat transaksi dalam format CSV atau JSON
+    public function export(Request $request)
+    {
+        $rows = Payment::where('user_id', Auth::id())->latest()->get();
+
+        if ($request->query('format') === 'json') {
+            return response()->json($rows);
+        }
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['order_id', 'tipe', 'status', 'nominal', 'tanggal']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r->order_id,
+                    $r->payment_type,
+                    $r->status,
+                    $r->gross_amount,
+                    $r->created_at ? $r->created_at->toDateTimeString() : '',
+                ]);
+            }
+            fclose($out);
+        }, 'riwayat-transaksi.csv', [
+            'Content-Type' => 'text/csv',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
     }
 
     // Mengupdate profil dan password
