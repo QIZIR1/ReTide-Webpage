@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\MarketplaceProduct;
+use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
 
 class MarketplaceProductController extends Controller
@@ -118,7 +119,17 @@ class MarketplaceProductController extends Controller
     public function destroy(string $id)
     {
         $product = MarketplaceProduct::findOrFail($id);
+        $productId = $product->id;
+        $productName = $product->name;
+        $productPrice = $product->price;
+
         $product->delete();
+
+        SecurityAuditService::log('PRODUCT_DELETE', [
+            'product_id' => $productId,
+            'name' => $productName,
+            'price' => $productPrice,
+        ]);
 
         return redirect()->route('admin.marketplace.index')->with('success', 'Product berhasil dihapus!');
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Donation;
 use App\Models\DonationUpdate;
+use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
 
 class DonationUpdateController extends Controller
@@ -33,11 +34,18 @@ class DonationUpdateController extends Controller
             'status' => 'required|string',
         ]);
 
-        DonationUpdate::create([
+        $donationUpdate = DonationUpdate::create([
             'donation_id' => $donation->id,
             'title' => $request->title,
             'description' => $request->description,
             'status' => $request->status,
+        ]);
+
+        SecurityAuditService::log('ADMIN_DONATION_STATUS_UPDATE', [
+            'donation_id' => $donation->id,
+            'update_id' => $donationUpdate->id,
+            'status' => $request->status,
+            'title' => $request->title,
         ]);
 
         return redirect()
