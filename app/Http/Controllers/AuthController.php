@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -23,17 +24,22 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:6',
+            'password' => [
+                'required',
+                'confirmed',
+                Password::min(8)->mixedCase()->numbers()->symbols(),
+            ],
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => explode('@', $request->email)[0],
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        // Setelah register, arahkan ke login dengan pesan sukses
-        return redirect()->route('login')->with('success', 'Registrasi berhasil! Silakan masuk.');
+        Auth::login($user);
+
+        return redirect()->route('home')->with('success', 'Registrasi berhasil! Selamat datang di Re:Tide.');
     }
 
     public function login(Request $request)

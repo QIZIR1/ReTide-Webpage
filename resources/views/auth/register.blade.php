@@ -75,8 +75,16 @@
                     <label for="password" class="block text-sm font-medium text-gray-300">Password</label>
                     <input type="password" id="password" name="password"
                         class="w-full bg-[#121212] border border-[#222] text-white rounded-xl p-4 focus:outline-none focus:border-[#63cfc0] focus:ring-1 focus:ring-[#63cfc0] transition-colors placeholder:text-[#555]"
-                        placeholder="••••••••" required minlength="6">
-                    <p class="text-xs text-gray-500 mt-2">Must be at least 6 characters long.</p>
+                        placeholder="••••••••" required minlength="8">
+                    <p class="text-xs text-gray-500 mt-2">Minimal 8 karakter dengan huruf besar, huruf kecil, angka, dan simbol.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="password_confirmation" class="block text-sm font-medium text-gray-300">Confirm Password</label>
+                    <input type="password" id="password_confirmation" name="password_confirmation"
+                        class="w-full bg-[#121212] border border-[#222] text-white rounded-xl p-4 focus:outline-none focus:border-[#63cfc0] focus:ring-1 focus:ring-[#63cfc0] transition-colors placeholder:text-[#555]"
+                        placeholder="••••••••" required minlength="8">
+                    <p class="text-xs text-gray-500 mt-2">Ulangi password yang telah dimasukkan.</p>
                 </div>
 
                 <button type="submit"
