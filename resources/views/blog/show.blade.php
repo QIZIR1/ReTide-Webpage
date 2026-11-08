@@ -106,9 +106,13 @@
 
         <article class="max-w-[75ch] mx-auto">
             <header class="mb-10 text-center">
-                @if($blogPost->created_at)
-                    <div class="text-sm text-brand font-medium mb-4 uppercase tracking-wider">{{ $blogPost->created_at->format('F j, Y') }}</div>
-                @endif
+                <div class="flex items-center justify-center text-sm text-brand font-medium mb-4 uppercase tracking-wider">
+                    @if($blogPost->created_at)
+                        <time datetime="{{ $blogPost->created_at->toIso8601String() }}">{{ $blogPost->created_at->format('F j, Y') }}</time>
+                        <span class="mx-2 text-gray-500">&bull;</span>
+                    @endif
+                    <span class="reading-time"><i class="far fa-clock mr-1"></i>{{ $blogPost->reading_time }} min read</span>
+                </div>
                 <h1 class="text-4xl md:text-5xl font-bold text-white mb-8 leading-tight break-words">{{ $blogPost->title }}</h1>
                 <div class="w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden border border-[#2A2A2A] bg-[#1E1E1E]">
                     <img src="{{ $blogPost->image_path }}" class="w-full h-full object-cover" alt="Blog cover image">
