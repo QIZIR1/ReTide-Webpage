@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class BlogPost extends Model
 {
@@ -46,5 +47,13 @@ class BlogPost extends Model
     public function getReadingTimeAttribute(): int
     {
         return self::calculateReadingTime($this->content);
+    }
+
+    /**
+     * Daftar user yang menyimpan (bookmark) artikel ini.
+     */
+    public function bookmarkedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'blog_bookmarks')->withTimestamps();
     }
 }

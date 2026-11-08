@@ -119,6 +119,25 @@
                 </div>
             </header>
 
+            @if(session('success'))
+                <div class="mb-6 rounded-xl border border-brand/30 bg-brand/10 px-4 py-3 text-sm text-brand">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <form action="{{ route('blog.bookmark', $blogPost->id) }}" method="POST" class="mb-10 flex justify-center">
+                @csrf
+                @if($isBookmarked)
+                    <button type="submit" class="inline-flex items-center rounded-full bg-brand px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-brand-light">
+                        <i class="fas fa-bookmark mr-2"></i>Tersimpan
+                    </button>
+                @else
+                    <button type="submit" class="inline-flex items-center rounded-full border border-brand px-5 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand hover:text-black">
+                        <i class="far fa-bookmark mr-2"></i>Simpan Artikel
+                    </button>
+                @endif
+            </form>
+
             <div class="text-gray-300 text-lg leading-relaxed whitespace-pre-wrap">
                 {!! nl2br(e($blogPost->content)) !!}
             </div>

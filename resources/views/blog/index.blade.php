@@ -105,8 +105,20 @@
     </div>
 
     <section class="pb-24 px-4 max-w-screen-md mx-auto">
+        <!-- Filter Bar -->
+        <div class="flex flex-wrap items-center gap-3 mb-12">
+            <a href="{{ route('blog.index') }}"
+                class="rounded-full px-5 py-2 text-sm font-semibold transition-colors {{ ! $savedOnly ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
+                Semua
+            </a>
+            <a href="{{ route('blog.index', ['saved' => 1]) }}"
+                class="rounded-full px-5 py-2 text-sm font-semibold transition-colors {{ $savedOnly ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
+                <i class="fas fa-bookmark mr-1"></i>Tersimpan
+            </a>
+        </div>
+
         <div class="flex flex-col space-y-16">
-            @foreach($blog as $blogPosts)
+            @forelse($blog as $blogPosts)
                 <a href="{{ route('blog.show', $blogPosts->id) }}" class="group block">
                     <article class="flex flex-col gap-6">
                         <div class="relative w-full aspect-[16/9] overflow-hidden rounded-2xl bg-[#1E1E1E]">
@@ -130,7 +142,11 @@
                         </div>
                     </article>
                 </a>
-            @endforeach
+            @empty
+                <p class="text-center text-gray-400 py-16">
+                    {{ $savedOnly ? 'Belum ada artikel yang kamu simpan.' : 'Belum ada artikel.' }}
+                </p>
+            @endforelse
         </div>
     </section>
 
