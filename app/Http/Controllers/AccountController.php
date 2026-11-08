@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -17,6 +19,34 @@ class AccountController extends Controller
         $user = Auth::user();
 
         return view('account', compact('user'));
+    }
+
+    // Mengunduh riwayat transaksi dalam format CSV atau JSON
+    public function export(Request $request)
+    {
+        $rows = Payment::where('user_id', Auth::id())->latest()->get();
+
+        if ($request->query('format') === 'json') {
+            return response()->json($rows);
+        }
+
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['order_id', 'tipe', 'status', 'nominal', 'tanggal']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r->order_id,
+                    $r->payment_type,
+                    $r->status,
+                    $r->gross_amount,
+                    $r->created_at ? $r->created_at->toDateTimeString() : '',
+                ]);
+            }
+            fclose($out);
+        }, 'riwayat-transaksi.csv', [
+            'Content-Type' => 'text/csv',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
     }
 
     // Mengupdate profil dan password
@@ -38,6 +68,13 @@ class AccountController extends Controller
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
             'notelp' => ['nullable', 'string', 'max:20'],
+            'avatar' => [
+                'nullable',
+                'image',
+                'mimes:jpeg,png,webp',
+                'max:2048',
+                'dimensions:max_width=2000,max_height=2000',
+            ],
             'current_password' => ['nullable', 'required_with:new_password'],
             'new_password' => [
                 'nullable',
@@ -52,6 +89,13 @@ class AccountController extends Controller
         $user->name = $request->username;
         $user->email = $request->email;
         $user->phone_number = $request->notelp;
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $user->avatar = $request->file('avatar')->store('avatars', 'public');
+        }
 
         if ($request->filled('new_password')) {
             if (! Hash::check($request->current_password, $user->password)) {

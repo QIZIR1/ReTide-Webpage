@@ -109,9 +109,19 @@
 
     <!-- Main Content -->
     <main class="flex-grow pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full">
-        <div class="mb-10">
-            <h1 class="text-3xl font-semibold text-white mb-2">Account Settings</h1>
-            <p class="text-gray-400">Manage your profile information and security preferences.</p>
+        <div class="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-semibold text-white mb-2">Account Settings</h1>
+                <p class="text-gray-400">Manage your profile information and security preferences.</p>
+            </div>
+            <div>
+                <a href="{{ route('account.export') }}" class="btn-primary inline-flex items-center space-x-2 text-sm px-4 py-2.5 rounded-lg shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Export Riwayat (CSV)</span>
+                </a>
+            </div>
         </div>
 
         @if(session('success'))
@@ -156,9 +166,28 @@
                     </div>
                     
                     <div class="p-6">
-                        <form action="{{ route('account.update') }}" method="POST" class="space-y-6">
+                        <form action="{{ route('account.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                             @csrf
                             @method('PUT')
+
+                            <!-- Avatar Upload Section -->
+                            <div class="flex items-center space-x-6 pb-4 border-b border-border">
+                                <div class="relative">
+                                    <img id="avatar-preview" 
+                                         src="{{ $user->avatar_url }}" 
+                                         alt="Avatar Preview" 
+                                         class="w-20 h-20 rounded-full object-cover border-2 border-[#63cfc0] shadow-md">
+                                </div>
+                                <div class="space-y-1.5 flex-1">
+                                    <label class="block text-sm font-medium text-gray-300">Profile Avatar</label>
+                                    <input type="file" name="avatar" id="avatar-input" accept="image/jpeg,image/png,image/webp"
+                                        class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#63cfc0]/10 file:text-[#63cfc0] hover:file:bg-[#63cfc0]/20 cursor-pointer">
+                                    <p class="text-xs text-gray-500">JPG, PNG, atau WEBP. Maksimal 2MB.</p>
+                                    @error('avatar')
+                                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-2">
@@ -223,6 +252,31 @@
                     </div>
                 </section>
 
+                <!-- Transaction History & Export Section -->
+                <section class="bg-surface border border-border rounded-xl overflow-hidden">
+                    <div class="px-6 py-5 border-b border-border bg-[#0a0a0a]">
+                        <h2 class="text-lg font-medium text-white">Riwayat Transaksi</h2>
+                        <p class="text-sm text-gray-500 mt-1">Unduh seluruh catatan transaksi dan donasi Anda dalam format file CSV.</p>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div class="max-w-md">
+                                <p class="text-sm text-gray-300 font-medium">Export Riwayat Pembelian & Donasi</p>
+                                <p class="text-xs text-gray-500 mt-1">File CSV berisi daftar Order ID, tipe transaksi, status, nominal pembayaran, dan tanggal pembuatan.</p>
+                            </div>
+                            <div>
+                                <a href="{{ route('account.export') }}" class="btn-primary inline-flex items-center space-x-2 text-sm px-5 py-3 rounded-lg shadow-md font-semibold hover:scale-105 transition-transform">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Download Riwayat (CSV)</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Danger Zone -->
                 <section class="bg-surface border border-border rounded-xl overflow-hidden">
                     <div class="px-6 py-5 border-b border-border bg-[#0a0a0a]">
@@ -271,6 +325,21 @@
             if(btn && menu) {
                 btn.addEventListener('click', () => {
                     menu.classList.toggle('hidden');
+                });
+            }
+
+            const avatarInput = document.getElementById('avatar-input');
+            const avatarPreview = document.getElementById('avatar-preview');
+            if (avatarInput && avatarPreview) {
+                avatarInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            avatarPreview.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 });
             }
         });
