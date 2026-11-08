@@ -173,14 +173,18 @@ jobs:
           name: test-reports
 
       # SONAR_TOKEN disimpan di GitHub Secrets (tidak pernah di-hardcode).
-      # SONAR_HOST_URL disimpan di GitHub Variables:
-      #   - SonarQube Cloud  : https://sonarcloud.io
-      #   - SonarQube server : URL server yang bisa diakses publik
+      # SONAR_HOST_URL default ke SonarQube Cloud (https://sonarcloud.io)
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
         with:
           args: >
+            -Dsonar.organization=QIZIR1
+            -Dsonar.projectKey=QIZIR1_ReTide-Webpage
+            -Dsonar.sources=app,config,routes
+            -Dsonar.tests=tests
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.php.tests.reportPath=junit.xml
             -Dsonar.qualitygate.wait=true
