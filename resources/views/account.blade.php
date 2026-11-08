@@ -164,7 +164,7 @@
                             <div class="flex items-center space-x-6 pb-4 border-b border-border">
                                 <div class="relative">
                                     <img id="avatar-preview" 
-                                         src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://ui-avatars.com/api/?name=' . urlencode($user->name) . '&background=63cfc0&color=000&size=128' }}" 
+                                         src="{{ $user->avatar_url }}" 
                                          alt="Avatar Preview" 
                                          class="w-20 h-20 rounded-full object-cover border-2 border-[#63cfc0] shadow-md">
                                 </div>
