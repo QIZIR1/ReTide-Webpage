@@ -23,5 +23,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.organization=archaniels
-            -Dsonar.projectKey=Archaniels_ReTide-Webpage
+            -Dsonar.organization=qizir1
+            -Dsonar.projectKey=QIZIR1_ReTide-Webpage
