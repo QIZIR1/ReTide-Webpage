@@ -94,4 +94,111 @@ class BlogEngagementTest extends TestCase
         $showResponse->assertStatus(200);
         $showResponse->assertSee('3 min read');
     }
+
+    // =========================================================================
+    // Fitur 2: Bookmark Artikel
+    // =========================================================================
+
+    public function test_user_can_bookmark_and_unbookmark_blog_post(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['role' => 'user']);
+        $post = $this->makePost($this->words(50));
+
+        // Act: simpan artikel
+        $saveResponse = $this->actingAs($user)
+            ->from("/blog/{$post->id}")
+            ->post(route('blog.bookmark', $post->id));
+
+        // Assert: tersimpan di database dan muncul pesan sukses
+        $saveResponse->assertRedirect("/blog/{$post->id}");
+        $saveResponse->assertSessionHas('success', 'Artikel disimpan ke bookmark.');
+        $this->assertDatabaseHas('blog_bookmarks', [
+            'user_id' => $user->id,
+            'blog_post_id' => $post->id,
+        ]);
+
+        // Act: klik lagi untuk menghapus bookmark
+        $removeResponse = $this->actingAs($user)
+            ->from("/blog/{$post->id}")
+            ->post(route('blog.bookmark', $post->id));
+
+        // Assert: bookmark terhapus
+        $removeResponse->assertSessionHas('success', 'Artikel dihapus dari bookmark.');
+        $this->assertDatabaseMissing('blog_bookmarks', [
+            'user_id' => $user->id,
+            'blog_post_id' => $post->id,
+        ]);
+    }
+
+    public function test_guest_cannot_bookmark_post(): void
+    {
+        // Arrange: tamu (belum login)
+        $post = $this->makePost($this->words(50));
+
+        // Act
+        $response = $this->post(route('blog.bookmark', $post->id));
+
+        // Assert: diarahkan ke login dan tidak ada bookmark yang dibuat
+        $response->assertRedirect(route('login'));
+        $this->assertDatabaseCount('blog_bookmarks', 0);
+    }
+
+    public function test_bookmarking_nonexistent_post_returns_404(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['role' => 'user']);
+
+        // Act: artikel dengan id 99999 tidak ada
+        $response = $this->actingAs($user)->post('/blog/99999/bookmark');
+
+        // Assert
+        $response->assertStatus(404);
+        $this->assertDatabaseCount('blog_bookmarks', 0);
+    }
+
+    public function test_saved_filter_only_shows_current_users_bookmarks(): void
+    {
+        // Arrange: dua user, masing-masing menyimpan artikel berbeda
+        $user = User::factory()->create(['role' => 'user']);
+        $otherUser = User::factory()->create(['role' => 'user']);
+        $myPost = $this->makePost($this->words(50), 'Artikel Simpanan Saya');
+        $otherPost = $this->makePost($this->words(50), 'Artikel Simpanan Orang Lain');
+        $this->makePost($this->words(50), 'Artikel Tidak Disimpan');
+
+        $user->bookmarkedPosts()->attach($myPost->id);
+        $otherUser->bookmarkedPosts()->attach($otherPost->id);
+
+        // Act
+        $response = $this->actingAs($user)->get('/blog?saved=1');
+
+        // Assert: hanya artikel milik user yang login yang tampil
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->viewData('blog'));
+        $response->assertSee('Artikel Simpanan Saya');
+        $response->assertDontSee('Artikel Simpanan Orang Lain');
+        $response->assertDontSee('Artikel Tidak Disimpan');
+    }
+
+    public function test_show_page_reflects_bookmark_status(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['role' => 'user']);
+        $post = $this->makePost($this->words(50));
+
+        // Act & Assert: sebelum disimpan, tombol "Simpan Artikel"
+        $this->actingAs($user)->get("/blog/{$post->id}")
+            ->assertStatus(200)
+            ->assertSee('Simpan Artikel')
+            ->assertDontSee('Tersimpan');
+
+        // Act: simpan artikel
+        $user->bookmarkedPosts()->attach($post->id);
+
+        // Assert: setelah disimpan, tombol berubah menjadi "Tersimpan"
+        $this->actingAs($user)->get("/blog/{$post->id}")
+            ->assertStatus(200)
+            ->assertSee('Tersimpan')
+            ->assertDontSee('Simpan Artikel');
+    }
 }

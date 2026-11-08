@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\MarketplaceController as AdminMarketplaceControll
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BlogBookmarkController;
 use App\Http\Controllers\BlogPostsController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\DonationController;
@@ -114,6 +115,7 @@ Route::middleware(['auth'])->group(function () {
         // Public Blog
         Route::get('/blog', [BlogPostsController::class, 'index'])->name('blog.index');
         Route::get('/blog/{id}', [BlogPostsController::class, 'show'])->name('blog.show');
+        Route::post('/blog/{blogPost}/bookmark', [BlogBookmarkController::class, 'toggle'])->name('blog.bookmark');
 
         // Public Marketplace
         Route::get('/marketplace', [MarketplaceProductController::class, 'index'])->name('marketplace.index');

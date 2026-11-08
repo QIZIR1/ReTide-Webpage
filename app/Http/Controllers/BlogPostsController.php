@@ -10,11 +10,24 @@ class BlogPostsController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $blog = BlogPost::latest()->get();
+        // ?saved=1 -> hanya tampilkan artikel yang di-bookmark user yang login
+        $savedOnly = $request->boolean('saved');
 
-        return view('blog.index', ['blog' => $blog]);
+        $blog = BlogPost::query()
+            ->when($savedOnly, function ($query) {
+                $query->whereHas('bookmarkedBy', function ($q) {
+                    $q->where('users.id', auth()->id());
+                });
+            })
+            ->latest()
+            ->get();
+
+        return view('blog.index', [
+            'blog' => $blog,
+            'savedOnly' => $savedOnly,
+        ]);
     }
 
     /**
@@ -61,8 +74,9 @@ class BlogPostsController extends Controller
     public function show(string $id)
     {
         $blogPost = BlogPost::findOrFail($id);
+        $isBookmarked = auth()->user()->hasBookmarked($blogPost);
 
-        return view('blog.show', compact('blogPost'));
+        return view('blog.show', compact('blogPost', 'isBookmarked'));
     }
 
     /**

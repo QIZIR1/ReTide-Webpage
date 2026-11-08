@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -29,6 +30,22 @@ class User extends Authenticatable
     public function isAdmin()
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Artikel blog yang disimpan (bookmark) oleh user ini.
+     */
+    public function bookmarkedPosts(): BelongsToMany
+    {
+        return $this->belongsToMany(BlogPost::class, 'blog_bookmarks')->withTimestamps();
+    }
+
+    /**
+     * Mengecek apakah user sudah menyimpan artikel tertentu.
+     */
+    public function hasBookmarked(BlogPost $post): bool
+    {
+        return $this->bookmarkedPosts()->whereKey($post->getKey())->exists();
     }
 
     /**
