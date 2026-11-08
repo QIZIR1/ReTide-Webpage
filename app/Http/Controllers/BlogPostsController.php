@@ -15,18 +15,25 @@ class BlogPostsController extends Controller
         // ?saved=1 -> hanya tampilkan artikel yang di-bookmark user yang login
         $savedOnly = $request->boolean('saved');
 
+        // ?tag=... -> hanya tampilkan artikel dengan tag tersebut
+        $tagInput = trim((string) $request->query('tag', ''));
+        $activeTag = $tagInput !== '' ? (BlogPost::normalizeTag($tagInput) ?: null) : null;
+
         $blog = BlogPost::query()
             ->when($savedOnly, function ($query) {
                 $query->whereHas('bookmarkedBy', function ($q) {
                     $q->where('users.id', auth()->id());
                 });
             })
+            ->when($tagInput !== '', fn ($query) => $query->withTag($tagInput))
             ->latest()
             ->get();
 
         return view('blog.index', [
             'blog' => $blog,
             'savedOnly' => $savedOnly,
+            'activeTag' => $activeTag,
+            'popularTags' => BlogPost::popularTags(),
         ]);
     }
 
@@ -47,6 +54,7 @@ class BlogPostsController extends Controller
             'title' => 'required|min:5|max:100',
             'content' => 'required|min:10|max:5000',
             'image_path' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'tags' => 'nullable|string|max:255',
         ]);
 
         $imagePath = null;
@@ -63,6 +71,7 @@ class BlogPostsController extends Controller
             'title' => $request->input('title'),
             'content' => $request->input('content'),
             'image_path' => $imagePath,
+            'tags' => BlogPost::parseTags($request->input('tags')),
         ]);
 
         return redirect()->route('admin.blogs.index')->with('success', 'Blog berhasil ditambahkan!');
@@ -100,11 +109,13 @@ class BlogPostsController extends Controller
             'title' => 'required|min:5|max:100',
             'content' => 'required|min:10|max:5000',
             'image_path' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'tags' => 'nullable|string|max:255',
         ]);
 
         $data = [
             'title' => $request->input('title'),
             'content' => $request->input('content'),
+            'tags' => BlogPost::parseTags($request->input('tags')),
         ];
 
         if ($request->hasFile('image_path')) {

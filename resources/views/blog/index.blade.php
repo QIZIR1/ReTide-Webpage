@@ -106,16 +106,29 @@
 
     <section class="pb-24 px-4 max-w-screen-md mx-auto">
         <!-- Filter Bar -->
-        <div class="flex flex-wrap items-center gap-3 mb-12">
+        <div class="flex flex-wrap items-center gap-3 {{ $activeTag ? 'mb-4' : 'mb-12' }}">
             <a href="{{ route('blog.index') }}"
-                class="rounded-full px-5 py-2 text-sm font-semibold transition-colors {{ ! $savedOnly ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
+                class="rounded-full px-5 py-2 text-sm font-semibold transition-colors {{ ! $savedOnly && ! $activeTag ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
                 Semua
             </a>
             <a href="{{ route('blog.index', ['saved' => 1]) }}"
                 class="rounded-full px-5 py-2 text-sm font-semibold transition-colors {{ $savedOnly ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
                 <i class="fas fa-bookmark mr-1"></i>Tersimpan
             </a>
+            @foreach($popularTags as $tag)
+                <a href="{{ route('blog.index', ['tag' => $tag]) }}"
+                    class="rounded-full px-4 py-2 text-sm font-medium transition-colors {{ $activeTag === $tag ? 'bg-brand text-black' : 'border border-white/10 text-gray-300 hover:text-white' }}">
+                    #{{ $tag }}
+                </a>
+            @endforeach
         </div>
+
+        @if($activeTag)
+            <p class="text-sm text-gray-400 mb-12">
+                Menampilkan artikel dengan tag <span class="text-brand font-semibold">#{{ $activeTag }}</span>
+                - <a href="{{ route('blog.index') }}" class="underline hover:text-white">hapus filter</a>
+            </p>
+        @endif
 
         <div class="flex flex-col space-y-16">
             @forelse($blog as $blogPosts)
@@ -135,6 +148,14 @@
                             </div>
                             <h2 class="text-3xl md:text-4xl font-semibold text-white mb-4 group-hover:text-brand transition-colors leading-tight line-clamp-2 break-words truncate max-w-[24ch]">{{ $blogPosts->title }}</h2>
                             <p class="text-gray-400 text-base md:text-lg mb-6 line-clamp-3 leading-relaxed">{{ $blogPosts->content }}</p>
+                            @if(! empty($blogPosts->tags))
+                                <!-- Tag ditampilkan sebagai span (bukan link) karena kartu sudah dibungkus <a> -->
+                                <div class="flex flex-wrap gap-2 mb-6">
+                                    @foreach($blogPosts->tags as $tag)
+                                        <span class="rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-brand">#{{ $tag }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
                             <span class="inline-flex items-center text-sm font-semibold text-white group-hover:text-brand transition-colors">
                                 Read Article
                                 <svg class="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -144,7 +165,13 @@
                 </a>
             @empty
                 <p class="text-center text-gray-400 py-16">
-                    {{ $savedOnly ? 'Belum ada artikel yang kamu simpan.' : 'Belum ada artikel.' }}
+                    @if($activeTag)
+                        Tidak ada artikel dengan tag #{{ $activeTag }}.
+                    @elseif($savedOnly)
+                        Belum ada artikel yang kamu simpan.
+                    @else
+                        Belum ada artikel.
+                    @endif
                 </p>
             @endforelse
         </div>

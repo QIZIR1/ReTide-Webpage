@@ -14,7 +14,7 @@ class BlogPostTest extends TestCase
     {
         $post = new BlogPost;
 
-        $this->assertEquals(['title', 'content', 'image_path'], $post->getFillable());
+        $this->assertEquals(['title', 'content', 'image_path', 'tags'], $post->getFillable());
     }
 
     public function test_blog_post_table_and_primary_key(): void
