@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Midtrans\Config;
 use Midtrans\Notification;
 
@@ -69,35 +70,60 @@ class PaymentWebhookController extends Controller
             ], 404);
         }
 
-        // Update payment record
+        // Tentukan status baru dari notifikasi (belum disimpan)
+        $newStatus = $payment->status;
+
         if ($transaction == 'capture') {
             if ($type == 'credit_card') {
-                if ($fraud == 'challenge') {
-                    $payment->status = 'challenge';
-                } else {
-                    $payment->status = 'success';
-                }
+                $newStatus = ($fraud == 'challenge') ? 'challenge' : 'success';
             }
         } elseif ($transaction == 'settlement') {
-            $payment->status = 'success';
+            $newStatus = 'success';
         } elseif ($transaction == 'pending') {
-            $payment->status = 'pending';
+            $newStatus = 'pending';
         } elseif ($transaction == 'deny') {
-            $payment->status = 'denied';
+            $newStatus = 'denied';
         } elseif ($transaction == 'expire') {
-            $payment->status = 'expired';
+            $newStatus = 'expired';
         } elseif ($transaction == 'cancel') {
-            $payment->status = 'cancelled';
+            $newStatus = 'cancelled';
         }
 
-        $payment->transaction_id = $notif->transaction_id;
-        $payment->payment_type = $type;
-        $payment->payload = $request->all();
-        $payment->save();
+        // Transaksi + kunci baris: aman dari notifikasi yang datang bersamaan
+        return DB::transaction(function () use ($payment, $newStatus, $notif, $type, $request) {
+            $payment = Payment::whereKey($payment->getKey())->lockForUpdate()->first();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Notification handled',
-        ]);
+            // Guard 1 (idempotency): notifikasi yang sama persis (status & transaction_id sama) diabaikan
+            if ($payment->status === $newStatus && $payment->transaction_id === $notif->transaction_id) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'already processed',
+                ], 200);
+            }
+
+            // Guard 2 (status final): 'success' tidak boleh berubah lagi
+            if ($payment->status === 'success') {
+                Log::warning('Midtrans Webhook: ignored change from final status', [
+                    'order_id' => $payment->order_id,
+                    'to' => $newStatus,
+                ]);
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'ignored: final status',
+                ], 200);
+            }
+
+            $payment->status = $newStatus;
+            $payment->transaction_id = $notif->transaction_id;
+            $payment->payment_type = $type;
+            $payment->payload = $request->all();
+            $payment->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Notification handled',
+            ]);
+        });
     }
 }
