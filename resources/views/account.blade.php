@@ -156,9 +156,28 @@
                     </div>
                     
                     <div class="p-6">
-                        <form action="{{ route('account.update') }}" method="POST" class="space-y-6">
+                        <form action="{{ route('account.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                             @csrf
                             @method('PUT')
+
+                            <!-- Avatar Upload Section -->
+                            <div class="flex items-center space-x-6 pb-4 border-b border-border">
+                                <div class="relative">
+                                    <img id="avatar-preview" 
+                                         src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://ui-avatars.com/api/?name=' . urlencode($user->name) . '&background=63cfc0&color=000&size=128' }}" 
+                                         alt="Avatar Preview" 
+                                         class="w-20 h-20 rounded-full object-cover border-2 border-[#63cfc0] shadow-md">
+                                </div>
+                                <div class="space-y-1.5 flex-1">
+                                    <label class="block text-sm font-medium text-gray-300">Profile Avatar</label>
+                                    <input type="file" name="avatar" id="avatar-input" accept="image/jpeg,image/png,image/webp"
+                                        class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#63cfc0]/10 file:text-[#63cfc0] hover:file:bg-[#63cfc0]/20 cursor-pointer">
+                                    <p class="text-xs text-gray-500">JPG, PNG, atau WEBP. Maksimal 2MB.</p>
+                                    @error('avatar')
+                                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-2">
@@ -271,6 +290,21 @@
             if(btn && menu) {
                 btn.addEventListener('click', () => {
                     menu.classList.toggle('hidden');
+                });
+            }
+
+            const avatarInput = document.getElementById('avatar-input');
+            const avatarPreview = document.getElementById('avatar-preview');
+            if (avatarInput && avatarPreview) {
+                avatarInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            avatarPreview.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 });
             }
         });

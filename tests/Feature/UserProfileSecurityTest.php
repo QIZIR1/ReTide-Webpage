@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class UserProfileSecurityTest extends TestCase
@@ -112,6 +114,99 @@ class UserProfileSecurityTest extends TestCase
 
         $response->assertSessionHasNoErrors();
         $this->assertTrue(Hash::check('NewStrongPass#2026', $user->fresh()->password));
+    }
+
+    /**
+     * Test 6: Upload avatar ditolak jika format bukan gambar (misal file PDF).
+     */
+    public function test_user_cannot_upload_non_image_avatar(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->create('document.pdf', 10, 'application/pdf');
+
+        $response = $this->actingAs($user)->put('/account', [
+            'username' => $user->name,
+            'email' => $user->email,
+            'avatar' => $file,
+        ]);
+
+        $response->assertSessionHasErrors('avatar');
+        $this->assertNull($user->fresh()->avatar);
+    }
+
+    /**
+     * Test 7: Upload avatar ditolak jika ukuran melebihi batas (3MB > 2MB).
+     */
+    public function test_user_cannot_upload_avatar_exceeding_max_size(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->image('large_avatar.jpg')->size(3000); // 3000 KB = ~3MB
+
+        $response = $this->actingAs($user)->put('/account', [
+            'username' => $user->name,
+            'email' => $user->email,
+            'avatar' => $file,
+        ]);
+
+        $response->assertSessionHasErrors('avatar');
+        $this->assertNull($user->fresh()->avatar);
+    }
+
+    /**
+     * Test 8: Upload avatar berhasil jika gambar valid (JPG/PNG <= 2MB).
+     */
+    public function test_user_can_upload_valid_avatar(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->image('my_avatar.png', 400, 400)->size(500);
+
+        $response = $this->actingAs($user)->put('/account', [
+            'username' => $user->name,
+            'email' => $user->email,
+            'avatar' => $file,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $freshUser = $user->fresh();
+        $this->assertNotNull($freshUser->avatar);
+        Storage::disk('public')->assertExists($freshUser->avatar);
+    }
+
+    /**
+     * Test 9: Mengunggah avatar baru akan menghapus file avatar lama dari storage.
+     */
+    public function test_uploading_new_avatar_deletes_old_avatar_file(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        // Upload avatar pertama
+        $firstAvatar = UploadedFile::fake()->image('first.jpg', 300, 300);
+        $this->actingAs($user)->put('/account', [
+            'username' => $user->name,
+            'email' => $user->email,
+            'avatar' => $firstAvatar,
+        ]);
+        $oldPath = $user->fresh()->avatar;
+        Storage::disk('public')->assertExists($oldPath);
+
+        // Upload avatar kedua
+        $secondAvatar = UploadedFile::fake()->image('second.png', 300, 300);
+        $this->actingAs($user)->put('/account', [
+            'username' => $user->name,
+            'email' => $user->email,
+            'avatar' => $secondAvatar,
+        ]);
+        $newPath = $user->fresh()->avatar;
+
+        Storage::disk('public')->assertExists($newPath);
+        Storage::disk('public')->assertMissing($oldPath);
     }
 }
 
