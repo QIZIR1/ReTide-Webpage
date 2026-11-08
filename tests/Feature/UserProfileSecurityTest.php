@@ -211,7 +211,58 @@ class UserProfileSecurityTest extends TestCase
     }
 
     /**
-     * Test 10: User dapat mengekspor riwayat transaksi mereka sendiri ke CSV,
+     * Test 10: Accessor avatar_url mengembalikan URL asset jika file avatar ada di storage.
+     */
+    public function test_avatar_url_returns_storage_asset_when_avatar_file_exists(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create([
+            'avatar' => 'avatars/sample.jpg',
+        ]);
+
+        Storage::disk('public')->put('avatars/sample.jpg', 'fake image content');
+
+        $this->assertStringContainsString('storage/avatars/sample.jpg', $user->avatar_url);
+    }
+
+    /**
+     * Test 11: Accessor avatar_url mengembalikan avatar default (ui-avatars) jika belum upload atau file hilang.
+     */
+    public function test_avatar_url_returns_default_placeholder_when_no_avatar(): void
+    {
+        Storage::fake('public');
+        $userWithoutAvatar = User::factory()->create([
+            'name' => 'Budi Santoso',
+            'avatar' => null,
+        ]);
+
+        $this->assertStringContainsString('ui-avatars.com/api', $userWithoutAvatar->avatar_url);
+        $this->assertStringContainsString('Budi+Santoso', $userWithoutAvatar->avatar_url);
+
+        // Kasus ketika ada path di database tapi file fisiknya hilang di disk
+        $userWithMissingFile = User::factory()->create([
+            'name' => 'Missing File',
+            'avatar' => 'avatars/nonexistent.jpg',
+        ]);
+        $this->assertStringContainsString('ui-avatars.com/api', $userWithMissingFile->avatar_url);
+    }
+
+    /**
+     * Test 12: Halaman profil akun dapat diakses dan merender avatar pengguna.
+     */
+    public function test_account_page_displays_user_avatar(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/account');
+
+        $response->assertOk();
+        $response->assertSee(e($user->avatar_url), false);
+    }
+
+    /**
+     * Test 13: User dapat mengekspor riwayat transaksi mereka sendiri ke CSV,
      * dan data transaksi milik user lain TIDAK bocor ke file ekspor (mencegah IDOR).
      */
     public function test_user_can_export_transaction_history_and_no_data_leakage(): void
@@ -264,7 +315,7 @@ class UserProfileSecurityTest extends TestCase
     }
 
     /**
-     * Test 11: User dapat mengekspor riwayat transaksi dalam format JSON jika parameter format=json.
+     * Test 14: User dapat mengekspor riwayat transaksi dalam format JSON jika parameter format=json.
      */
     public function test_user_can_export_transaction_history_as_json(): void
     {
@@ -287,7 +338,7 @@ class UserProfileSecurityTest extends TestCase
     }
 
     /**
-     * Test 12: Pengunjung yang belum login (guest) tidak dapat mengekspor riwayat.
+     * Test 15: Pengunjung yang belum login (guest) tidak dapat mengekspor riwayat.
      */
     public function test_guest_cannot_export_transaction_history(): void
     {
