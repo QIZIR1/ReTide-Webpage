@@ -1,68 +1,186 @@
-name: ReTide DevSecOps CI Pipeline
+# =====================================================================
+# ReTide Webpage - Continuous Integration Pipeline
+# Stage: Build -> Test (+coverage) -> Dependency Check -> SonarQube
+# =====================================================================
+name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: workflow hanya boleh membaca isi repo
+permissions:
+  contents: read
+
+# Batalkan run lama jika ada push baru di branch/PR yang sama
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHP_VERSION: "8.2"
+  NODE_VERSION: "20"
 
 jobs:
-  build-and-test:
-    name: Build, Audit & Test
+  # -------------------------------------------------------------------
+  # STAGE 1 - BUILD
+  # -------------------------------------------------------------------
+  build:
+    name: "1. Build"
     runs-on: ubuntu-latest
-
-    services:
-      # Optional: In-memory service or SQLite
     steps:
-      - name: Checkout Code
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ env.PHP_VERSION }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, bcmath, pdo_sqlite, intl, gd
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets (Vite + Tailwind)
+        run: npm run build
+
+      - name: Verify Laravel application boots
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan route:list
+
+  # -------------------------------------------------------------------
+  # STAGE 2 - TEST (PHPUnit + Code Coverage)
+  # -------------------------------------------------------------------
+  test:
+    name: "2. Test & Coverage"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ env.PHP_VERSION }} with PCOV
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, bcmath, pdo_sqlite, intl, gd
+          coverage: pcov
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare testing environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Gagal otomatis jika coverage < 50% (syarat rubrik "Sangat Baik")
+      - name: Run PHPUnit (Unit + Feature) with coverage
+        run: >
+          php artisan test
+          --coverage --min=50
+          --coverage-clover=coverage.xml
+          --log-junit=junit.xml
+
+      - name: Upload test & coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            coverage.xml
+            junit.xml
+          retention-days: 7
+
+  # -------------------------------------------------------------------
+  # STAGE 3 - DEPENDENCY CHECK (DevSecOps)
+  # -------------------------------------------------------------------
+  dependency-check:
+    name: "3. Dependency Check"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ env.PHP_VERSION }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Gagal jika ada paket PHP dengan advisory keamanan
+      - name: composer audit (PHP packages)
+        run: composer audit --locked --format=table
+
+      # Gagal jika ada kerentanan level high / critical
+      - name: npm audit (Node packages)
+        run: npm audit --audit-level=high
+
+  # -------------------------------------------------------------------
+  # STAGE 4 - CODE QUALITY ANALYSIS (SonarQube)
+  # -------------------------------------------------------------------
+  sonarqube:
+    name: "4. SonarQube Analysis"
+    runs-on: ubuntu-latest
+    needs: [test, dependency-check]
+    steps:
+      - name: Checkout source code (full history for blame)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup PHP 8.2
-        uses: shivammathur/setup-php@v2
+      - name: Download coverage report from Test stage
+        uses: actions/download-artifact@v4
         with:
-          php-version: '8.2'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo, sqlite3, pdo_sqlite, bcmath
-          coverage: xdebug
+          name: test-reports
 
-      - name: Copy .env
-        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
-
-      - name: Install Composer Dependencies
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-
-      - name: Generate Application Key
-        run: php artisan key:generate
-
-      - name: Set Storage Permissions
-        run: chmod -R 777 storage bootstrap/cache
-
-      # DevSecOps Step 1: Automated Dependency Vulnerability Check
-      # Note: || true is added so CI continues to testing while reporting security advisories for review
-      - name: DevSecOps - Composer Dependency Audit
-        run: composer audit --format=plain || true
-
-      # DevSecOps Step 2: Automated Unit & Feature Testing with Coverage Report
-      - name: Execute Tests (PHPUnit) with Clover Coverage
+      # SONAR_TOKEN disimpan di GitHub Secrets (tidak pernah di-hardcode).
+      # SONAR_HOST_URL disimpan di GitHub Variables:
+      #   - SonarQube Cloud  : https://sonarcloud.io
+      #   - SonarQube server : URL server yang bisa diakses publik
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
-          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
-        run: vendor/bin/phpunit --coverage-clover=coverage.xml --log-junit=test-report.xml
-
-      # DevSecOps Step 3: SonarQube / SonarCloud Code Quality & Vulnerability Scan
-      - name: SonarCloud / SonarQube Quality Scan
-        uses: SonarSource/sonarqube-scan-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.sources=app,config,routes
-            -Dsonar.tests=tests
-            -Dsonar.php.coverage.reportPaths=coverage.xml
-            -Dsonar.php.tests.reportPath=test-report.xml
+            -Dsonar.qualitygate.wait=true
