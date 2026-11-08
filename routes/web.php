@@ -129,7 +129,7 @@ Route::middleware(['auth'])->group(function () {
                 $latestPayment->update(['status' => 'settlement']);
             }
 
-            session()->forget('cart');
+            session()->forget(['cart', 'coupon']);
 
             return view('marketplace_success');
         })->name('marketplace.success');
@@ -148,6 +148,8 @@ Route::middleware(['auth'])->group(function () {
         // Cart & Marketplace Checkout
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
         Route::post('/cart/sync', [CartController::class, 'sync'])->name('cart.sync');
+        Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
+        Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
         Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
         Route::post('/cart/process', [CartController::class, 'process'])->middleware('throttle:checkout-limit')->name('cart.process');
     });

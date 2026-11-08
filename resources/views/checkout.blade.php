@@ -73,11 +73,51 @@
                         @endforeach
                     </div>
 
+                    <!-- Promo Coupon -->
+                    <div class="border-t border-border pt-4 mb-4">
+                        @if($coupon)
+                        <div class="flex items-center justify-between p-3 bg-brand/10 border border-brand/30 rounded-xl">
+                            <div class="text-sm">
+                                <i class="fas fa-ticket-alt text-brand mr-1"></i>
+                                <span class="font-semibold text-white">{{ $coupon }}</span>
+                                <span class="text-gray-400">applied</span>
+                            </div>
+                            <form method="POST" action="{{ route('cart.coupon.remove') }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-xs text-gray-400 hover:text-red-400 transition-colors">Remove</button>
+                            </form>
+                        </div>
+                        @else
+                        <form method="POST" action="{{ route('cart.coupon.apply') }}" class="flex gap-2">
+                            @csrf
+                            <input type="text" name="coupon_code" placeholder="Promo code" maxlength="50" required
+                                class="flex-1 bg-surfaceActive border border-border rounded-xl px-4 py-2.5 text-sm text-white uppercase placeholder:normal-case placeholder-gray-500 focus:outline-none focus:border-brand">
+                            <button type="submit" class="px-4 py-2.5 rounded-xl border border-brand text-brand text-sm font-semibold hover:bg-brand hover:text-black transition-colors">Apply</button>
+                        </form>
+                        @endif
+
+                        @if(session('error'))
+                        <p class="text-xs text-red-400 mt-2">{{ session('error') }}</p>
+                        @elseif(session('success'))
+                        <p class="text-xs text-brand mt-2">{{ session('success') }}</p>
+                        @endif
+                        @error('coupon_code')
+                        <p class="text-xs text-red-400 mt-2">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <div class="border-t border-border pt-4 space-y-3">
                         <div class="flex justify-between text-gray-400">
                             <span>Subtotal</span>
-                            <span>Rp {{ number_format($totalAmount, 0, ',', '.') }}</span>
+                            <span>Rp {{ number_format($subtotal, 0, ',', '.') }}</span>
                         </div>
+                        @if($discount > 0)
+                        <div class="flex justify-between text-gray-400">
+                            <span>Discount ({{ $coupon }})</span>
+                            <span class="text-brand">- Rp {{ number_format($discount, 0, ',', '.') }}</span>
+                        </div>
+                        @endif
                         <div class="flex justify-between text-gray-400">
                             <span>Eco-Shipping</span>
                             <span class="text-brand">Free</span>
