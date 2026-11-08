@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Services\MarketplaceOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
@@ -94,6 +95,11 @@ class PaymentWebhookController extends Controller
         $payment->payment_type = $type;
         $payment->payload = $request->all();
         $payment->save();
+
+        // Paid marketplace order: decrease stock & increase sold count (runs once)
+        if ($payment->status === 'success' && ! empty($payment->items)) {
+            MarketplaceOrderService::fulfill($payment);
+        }
 
         return response()->json([
             'status' => 'success',

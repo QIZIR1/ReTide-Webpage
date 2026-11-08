@@ -113,15 +113,21 @@
         @method('PUT')
         <div>
             <label for="name" class="block mb-2.5 text-sm font-medium text-heading">Name</label>
-            <input type="text" id="name" name="name"
+            <input type="text" id="name" name="name" value="{{ old('name', $product->name) }}"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 placeholder:text-body"
                 placeholder="" required />
+            @error('name')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label for="description" class="block mb-2.5 text-sm font-medium text-heading">Description</label>
             <textarea type="text" id="description" name="description"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 shadow-xs placeholder:text-body"
-                placeholder="" required></textarea>
+                placeholder="" required>{{ old('description', $product->description) }}</textarea>
+            @error('description')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label for="category" class="block mb-2.5 text-sm font-medium text-heading">Category</label>
@@ -138,9 +144,12 @@
         </div>
         <div>
             <label for="price" class="block mb-2.5 text-sm font-medium text-heading">Price</label>
-            <input type="number" id="price" name="price"
+            <input type="number" id="price" name="price" value="{{ old('price', (float) $product->price) }}" min="0" step="any"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 placeholder:text-body"
                 placeholder="" required />
+            @error('price')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
         </div>
         <div>
             <label for="stock" class="block mb-2.5 text-sm font-medium text-heading">Stock</label>
@@ -153,9 +162,18 @@
         </div>
         <div>
             <label for="image_path" class="block mb-2.5 text-sm font-medium text-heading">Image</label>
+            @if($product->image_path)
+                <div class="flex items-center gap-3 mb-2">
+                    <img src="{{ $product->image_path }}" alt="{{ $product->name }}" class="h-16 w-16 object-cover rounded-lg border border-default-medium">
+                    <span class="text-xs text-body">Gambar saat ini. Kosongkan input di bawah untuk tetap memakai gambar ini.</span>
+                </div>
+            @endif
             <input type="file" id="image_path" name="image_path"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 shadow-xs placeholder:text-body"
                 placeholder="" />
+            @error('image_path')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
         </div>
 
         <button type="button"

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MarketplaceProduct;
 use App\Models\Payment;
+use App\Services\MarketplaceOrderService;
 use Illuminate\Http\Request;
 use Midtrans\Config;
 use Midtrans\Snap;
@@ -61,7 +62,9 @@ class CartController extends Controller
         ]);
 
         $cart = session()->get('cart', []);
-        $productId = $validated['product_id'];
+        $productId = (int) $validated['product_id'];
+        // Form/AJAX input arrives as a string; cast so JSON returns a number
+        $quantity = (int) $validated['quantity'];
 
         if (! isset($cart[$productId])) {
             return response()->json([
@@ -72,18 +75,51 @@ class CartController extends Controller
 
         $product = MarketplaceProduct::findOrFail($productId);
 
-        if ($validated['quantity'] > $product->stock) {
+        if ($quantity > $product->stock) {
             return $this->stockExceededResponse($product);
         }
 
-        $cart[$productId]['quantity'] = $validated['quantity'];
+        $cart[$productId]['quantity'] = $quantity;
         session()->put('cart', $cart);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Cart updated.',
-            'quantity' => $validated['quantity'],
+            'quantity' => $quantity,
             'stock' => $product->stock,
+        ]);
+    }
+
+    /**
+     * Remove a product from the cart.
+     */
+    public function remove(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => ['required', 'integer'],
+        ]);
+
+        $cart = session()->get('cart', []);
+        unset($cart[(int) $validated['product_id']]);
+
+        $this->saveCart($cart);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Item removed from cart.',
+        ]);
+    }
+
+    /**
+     * Remove every product from the cart.
+     */
+    public function clear()
+    {
+        $this->saveCart([]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cart cleared.',
         ]);
     }
 
@@ -227,6 +263,7 @@ class CartController extends Controller
             'status' => 'pending',
             'gross_amount' => $totalAmount,
             'user_id' => auth()->id(),
+            'items' => MarketplaceOrderService::itemsFromCart($cart),
         ]);
 
         $payment->snap_token = $snapToken;
@@ -301,6 +338,7 @@ class CartController extends Controller
             'status' => 'pending',
             'gross_amount' => $totalAmount,
             'user_id' => auth()->id(),
+            'items' => MarketplaceOrderService::itemsFromCart($cart),
             // "payload" => [
             //     "redirect_url" => $snapResponse->redirect_url,
             //     "token" => $snapToken,
@@ -353,6 +391,20 @@ class CartController extends Controller
         //         "Failed to create payment: " . $e->getMessage(),
         //     );
         // }
+    }
+
+    /**
+     * Persist the cart; an empty cart also drops any applied coupon.
+     */
+    private function saveCart(array $cart): void
+    {
+        if (empty($cart)) {
+            session()->forget(['cart', 'coupon']);
+
+            return;
+        }
+
+        session()->put('cart', $cart);
     }
 
     /**

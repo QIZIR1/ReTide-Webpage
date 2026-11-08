@@ -121,10 +121,12 @@ Route::middleware(['auth'])->group(function () {
             $latestPayment = \App\Models\Payment::where('user_id', auth()->id())
                 ->where('payment_type', 'marketplace')
                 ->where('status', 'pending')
-                ->latest()
+                ->latest('id')
                 ->first();
             if ($latestPayment && str_starts_with($latestPayment->snap_token ?? '', 'DEMO-')) {
                 $latestPayment->update(['status' => 'settlement']);
+                // Demo payment is paid: decrease stock & increase sold count
+                \App\Services\MarketplaceOrderService::fulfill($latestPayment);
             }
 
             session()->forget(['cart', 'coupon']);
@@ -146,6 +148,8 @@ Route::middleware(['auth'])->group(function () {
         // Cart & Marketplace Checkout
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
         Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
+        Route::post('/cart/remove', [CartController::class, 'remove'])->name('cart.remove');
+        Route::post('/cart/clear', [CartController::class, 'clear'])->name('cart.clear');
         Route::post('/cart/sync',[CartController::class, 'sync'])->name('cart.sync');
         Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
         Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');

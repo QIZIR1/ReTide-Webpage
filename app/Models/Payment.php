@@ -17,10 +17,13 @@ class Payment extends Model
         'gross_amount',
         'user_id',
         'payload',
+        'items',
     ];
 
     protected $casts = [
         'payload' => 'array',
+        'items' => 'array',
+        'fulfilled_at' => 'datetime',
         'gross_amount' => 'decimal:2',
     ];
 

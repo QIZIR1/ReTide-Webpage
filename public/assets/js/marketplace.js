@@ -14,12 +14,14 @@ function addToCart(product) {
         success: function(response) {
             const itemAda = cart.find((item) => item.id == product.id);
 
+            // Use the server's quantity so the UI always matches the session cart
+            const quantity = parseInt(response.quantity, 10) || 1;
             if (itemAda) {
-                itemAda.jumlah++;
+                itemAda.jumlah = quantity;
             } else {
                 cart.push({
                     ...product,
-                    jumlah: 1,
+                    jumlah: quantity,
                 });
             }
 
@@ -114,10 +116,10 @@ function tambahKuantitas(productId) {
         },
         data: {
             product_id: productId,
-            quantity: item.jumlah + 1
+            quantity: parseInt(item.jumlah, 10) + 1
         },
         success: function(response) {
-            item.jumlah = response.quantity;
+            item.jumlah = parseInt(response.quantity, 10);
             updateCart();
         },
         error: function(xhr) {
@@ -129,30 +131,57 @@ function tambahKuantitas(productId) {
     });
 }
 
+// POST a cart change to the server so it is persisted in the session
+function cartRequest(url, data, onSuccess) {
+    $.ajax({
+        url: url,
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        data: data,
+        success: onSuccess,
+        error: function(xhr) {
+            const message = xhr.responseJSON && xhr.responseJSON.message
+                ? xhr.responseJSON.message
+                : 'Gagal memperbarui keranjang';
+            showToast(message, 'error');
+        }
+    });
+}
+
 // Decrease
 function kurangKuantitas(productId) {
     const item = cart.find((item) => item.id == productId);
-    if (item) {
-        if (item.jumlah > 1) {
-            item.jumlah--;
-        } else {
-            removeFromCart(productId);
-        }
-        updateCart();
+    if (!item) return;
+
+    const newQuantity = parseInt(item.jumlah, 10) - 1;
+    if (newQuantity < 1) {
+        removeFromCart(productId);
+        return;
     }
+
+    cartRequest('/cart/update', { product_id: productId, quantity: newQuantity }, function(response) {
+        item.jumlah = parseInt(response.quantity, 10);
+        updateCart();
+    });
 }
 
 // Remove
 function removeFromCart(productId) {
-    cart = cart.filter((item) => item.id != productId);
-    updateCart();
+    cartRequest('/cart/remove', { product_id: productId }, function() {
+        cart = cart.filter((item) => item.id != productId);
+        updateCart();
+    });
 }
 
 // Clear
 function clearCart() {
     if (cart.length > 0 && confirm("Are you sure you want to clear your cart?")) {
-        cart = [];
-        updateCart();
+        cartRequest('/cart/clear', {}, function() {
+            cart = [];
+            updateCart();
+        });
     }
 }
 
