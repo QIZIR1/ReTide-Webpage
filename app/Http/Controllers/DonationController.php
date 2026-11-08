@@ -143,6 +143,6 @@ class DonationController extends Controller
         ]);
 
         return redirect()->route('admin.donations.index')
-            ->with('success', 'Data donasi berhasil dihapus.');
+            ->with('success', 'Donasi berhasil dihapus');
     }
 }
