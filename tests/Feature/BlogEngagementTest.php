@@ -201,4 +201,113 @@ class BlogEngagementTest extends TestCase
             ->assertSee('Tersimpan')
             ->assertDontSee('Simpan Artikel');
     }
+
+    // =========================================================================
+    // Fitur 3: Tagging & Filter Tag
+    // =========================================================================
+
+    public function test_tags_input_is_normalized(): void
+    {
+        // Arrange: input berantakan (hashtag, huruf besar, spasi ganda, duplikat, kosong, HTML)
+        $input = '#Microplastic, coral   rescue , MICROPLASTIC, , <b>laut</b>!';
+
+        // Act
+        $tags = BlogPost::parseTags($input);
+
+        // Assert: rapi, huruf kecil, tanpa duplikat dan tanpa HTML
+        $this->assertSame(['microplastic', 'coral-rescue', 'laut'], $tags);
+    }
+
+    public function test_tags_are_limited_to_five(): void
+    {
+        // Arrange: 7 tag
+        $input = 'satu, dua, tiga, empat, lima, enam, tujuh';
+
+        // Act
+        $tags = BlogPost::parseTags($input);
+
+        // Assert: hanya 5 tag pertama yang disimpan, input kosong menjadi array kosong
+        $this->assertCount(BlogPost::MAX_TAGS, $tags);
+        $this->assertSame(['satu', 'dua', 'tiga', 'empat', 'lima'], $tags);
+        $this->assertSame([], BlogPost::parseTags(null));
+        $this->assertSame([], BlogPost::parseTags('   '));
+    }
+
+    public function test_admin_can_create_post_with_tags(): void
+    {
+        // Arrange
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Act
+        $response = $this->actingAs($admin)->post(route('admin.blogs.store'), [
+            'title' => 'Artikel Dengan Tag',
+            'content' => 'Isi artikel tentang penyelamatan terumbu karang.',
+            'tags' => '#CoralRescue, laut',
+        ]);
+
+        // Assert: tag tersimpan dalam bentuk yang sudah dinormalisasi
+        $response->assertRedirect(route('admin.blogs.index'));
+        $post = BlogPost::where('title', 'Artikel Dengan Tag')->firstOrFail();
+        $this->assertSame(['coralrescue', 'laut'], $post->tags);
+    }
+
+    public function test_filter_blog_by_tag_returns_matching_posts(): void
+    {
+        // Arrange: artikel dengan tag berbeda dan tanpa tag
+        $user = User::factory()->create(['role' => 'user']);
+        BlogPost::create(['title' => 'Bahaya Mikroplastik', 'content' => $this->words(50), 'tags' => ['microplastic', 'laut']]);
+        BlogPost::create(['title' => 'Selamatkan Karang', 'content' => $this->words(50), 'tags' => ['coral-rescue']]);
+        BlogPost::create(['title' => 'Artikel Tanpa Tag', 'content' => $this->words(50)]);
+
+        // Act
+        $response = $this->actingAs($user)->get('/blog?tag=microplastic');
+
+        // Assert: hanya artikel dengan tag microplastic yang tampil
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->viewData('blog'));
+        $this->assertSame('microplastic', $response->viewData('activeTag'));
+        $response->assertSee('Bahaya Mikroplastik');
+        $response->assertDontSee('Selamatkan Karang');
+        $response->assertDontSee('Artikel Tanpa Tag');
+        $response->assertSee('Menampilkan artikel dengan tag');
+    }
+
+    public function test_filter_blog_by_tag_accepts_hash_and_uppercase(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['role' => 'user']);
+        BlogPost::create(['title' => 'Bahaya Mikroplastik', 'content' => $this->words(50), 'tags' => ['microplastic']]);
+
+        // Act: filter dengan '#' dan huruf besar (%23 = '#')
+        $response = $this->actingAs($user)->get('/blog?tag=%23MicroPlastic');
+
+        // Assert: tetap cocok karena input filter juga dinormalisasi
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->viewData('blog'));
+        $this->assertSame('microplastic', $response->viewData('activeTag'));
+        $response->assertSee('Bahaya Mikroplastik');
+    }
+
+    public function test_filter_blog_by_unknown_tag_returns_empty_list(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['role' => 'user']);
+        BlogPost::create(['title' => 'Bahaya Mikroplastik', 'content' => $this->words(50), 'tags' => ['microplastic']]);
+
+        // Act: tag yang tidak dipakai artikel mana pun
+        $unknownResponse = $this->actingAs($user)->get('/blog?tag=tidak-ada');
+
+        // Assert: daftar kosong dan muncul pesan kosong
+        $unknownResponse->assertStatus(200);
+        $this->assertCount(0, $unknownResponse->viewData('blog'));
+        $unknownResponse->assertSee('Tidak ada artikel dengan tag #tidak-ada.');
+
+        // Act: input berbahaya
+        $scriptResponse = $this->actingAs($user)->get('/blog?tag='.urlencode('<script>'));
+
+        // Assert: tetap aman (200) dan tidak menampilkan artikel apa pun
+        $scriptResponse->assertStatus(200);
+        $this->assertCount(0, $scriptResponse->viewData('blog'));
+        $scriptResponse->assertDontSee('Bahaya Mikroplastik');
+    }
 }

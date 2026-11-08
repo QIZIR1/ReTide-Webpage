@@ -146,6 +146,16 @@
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-brand block w-full px-3.5 py-3 shadow-xs placeholder:text-body"
                 placeholder="" required>{{ old('content', $blog->content) }}</textarea>
         </div>
+        <!-- Tags Form -->
+        <div>
+            <label for="tags" class="block mb-2.5 text-sm font-medium text-heading">Tags (Optional, pisahkan dengan koma, maks 5)</label>
+            <input type="text" id="tags" name="tags" value="{{ old('tags', implode(', ', $blog->tags ?? [])) }}"
+                class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-brand block w-full px-3.5 py-3 placeholder:text-body"
+                placeholder="microplastic, coral rescue, daur ulang" />
+            @error('tags')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
+        </div>
         <!-- Image Form -->
         <div>
             <label for="image_path" class="block mb-2.5 text-sm font-medium text-heading">Image (Optional, image must be

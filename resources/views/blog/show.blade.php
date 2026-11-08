@@ -125,6 +125,15 @@
                 </div>
             @endif
 
+            @if(! empty($blogPost->tags))
+                <div class="mb-6 flex flex-wrap justify-center gap-2">
+                    @foreach($blogPost->tags as $tag)
+                        <a href="{{ route('blog.index', ['tag' => $tag]) }}"
+                            class="rounded-full bg-white/5 px-3 py-1 text-sm font-medium text-brand transition-colors hover:bg-brand hover:text-black">#{{ $tag }}</a>
+                    @endforeach
+                </div>
+            @endif
+
             <form action="{{ route('blog.bookmark', $blogPost->id) }}" method="POST" class="mb-10 flex justify-center">
                 @csrf
                 @if($isBookmarked)
