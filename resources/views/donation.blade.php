@@ -129,6 +129,23 @@
           </div>
           <p class="text-sm text-gray-400">Target: Rp {{ number_format($donationGoal ?? 100000000, 0, ',', '.') }} &middot; Bersama kita bisa mencapai lebih banyak.</p>
         </div>
+                <div class="p-6 rounded-2xl bg-[#0f0f0f] border border-white/10">
+          <h3 class="text-sm font-semibold text-[#63cfc0] uppercase tracking-wider mb-3">Ringkasan Donasi Saya</h3>
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p class="text-gray-500">Total</p>
+              <p class="font-semibold text-white">Rp {{ number_format($summary['total'], 0, ',', '.') }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Transaksi</p>
+              <p class="font-semibold text-white">{{ $summary['count'] }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Terakhir</p>
+              <p class="font-semibold text-white">{{ $summary['last'] ? 'Rp '.number_format($summary['last']->amount, 0, ',', '.') : '-' }}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Form Sidebar -->
