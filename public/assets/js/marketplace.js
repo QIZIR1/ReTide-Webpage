@@ -33,6 +33,9 @@ function addToCart(product) {
                 setTimeout(() => {
                     window.location.href = '/login';
                 }, 1500);
+            } else if (xhr.status === 422 && xhr.responseJSON) {
+                // Stock limit reached
+                showToast(xhr.responseJSON.message, 'error');
             } else {
                 showToast('Gagal menambahkan ke keranjang', 'error');
             }
@@ -98,13 +101,32 @@ function updateTotal() {
     $("#total-price").text(total.toLocaleString('id-ID'));
 }
 
-// Increase
+// Increase (validated against available stock on the server)
 function tambahKuantitas(productId) {
     const item = cart.find((item) => item.id == productId);
-    if (item) {
-        item.jumlah++;
-        updateCart();
-    }
+    if (!item) return;
+
+    $.ajax({
+        url: '/cart/update',
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        data: {
+            product_id: productId,
+            quantity: item.jumlah + 1
+        },
+        success: function(response) {
+            item.jumlah = response.quantity;
+            updateCart();
+        },
+        error: function(xhr) {
+            const message = xhr.responseJSON && xhr.responseJSON.message
+                ? xhr.responseJSON.message
+                : 'Gagal memperbarui jumlah';
+            showToast(message, 'error');
+        }
+    });
 }
 
 // Decrease
@@ -188,7 +210,10 @@ function checkout() {
         },
         error: function(xhr) {
             console.error('Error syncing cart:', xhr);
-            showToast('Failed to prepare checkout', 'error');
+            const message = xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.message
+                ? xhr.responseJSON.message
+                : 'Failed to prepare checkout';
+            showToast(message, 'error');
             $btn.html(originalContent).prop("disabled", false);
         }
     });

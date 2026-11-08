@@ -150,7 +150,8 @@ Route::middleware(['auth'])->group(function () {
 
         // Cart & Marketplace Checkout
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-        Route::post('/cart/sync', [CartController::class, 'sync'])->name('cart.sync');
+        Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
+        Route::post('/cart/sync',[CartController::class, 'sync'])->name('cart.sync');
         Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->name('cart.coupon.apply');
         Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
         Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');

@@ -21,9 +21,16 @@ class CartController extends Controller
         // Get existing cart from session or initialize empty array
         $cart = session()->get('cart', []);
 
+        $newQuantity = ($cart[$productId]['quantity'] ?? 0) + 1;
+
+        // Prevent adding more items than the available stock
+        if ($newQuantity > $product->stock) {
+            return $this->stockExceededResponse($product);
+        }
+
         // Check if product is already in cart
         if (isset($cart[$productId])) {
-            $cart[$productId]['quantity']++;
+            $cart[$productId]['quantity'] = $newQuantity;
         } else {
             $cart[$productId] = [
                 'name' => $product->name,
@@ -38,19 +45,69 @@ class CartController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => $product->name.' added to cart!',
+            'quantity' => $newQuantity,
+            'stock' => $product->stock,
+        ]);
+    }
+
+    /**
+     * Change the quantity of a product already in the cart (used by the +/- buttons).
+     */
+    public function update(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => ['required', 'integer'],
+            'quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $cart = session()->get('cart', []);
+        $productId = $validated['product_id'];
+
+        if (! isset($cart[$productId])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Product is not in the cart.',
+            ], 404);
+        }
+
+        $product = MarketplaceProduct::findOrFail($productId);
+
+        if ($validated['quantity'] > $product->stock) {
+            return $this->stockExceededResponse($product);
+        }
+
+        $cart[$productId]['quantity'] = $validated['quantity'];
+        session()->put('cart', $cart);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cart updated.',
+            'quantity' => $validated['quantity'],
+            'stock' => $product->stock,
         ]);
     }
 
     public function sync(Request $request)
     {
+        $request->validate([
+            'cart' => ['array'],
+            'cart.*.id' => ['required', 'integer'],
+            'cart.*.quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
         $frontendCart = $request->input('cart', []);
         $cart = [];
 
         foreach ($frontendCart as $item) {
             $product = MarketplaceProduct::findOrFail($item['id']);
+
+            if ((int) $item['quantity'] > $product->stock) {
+                return $this->stockExceededResponse($product);
+            }
+
             $cart[$item['id']] = [
                 'name' => $product->name,
-                'quantity' => $item['quantity'],
+                'quantity' => (int) $item['quantity'],
                 'price' => $product->price,
                 'image' => $product->image_path,
             ];
@@ -115,6 +172,13 @@ class CartController extends Controller
             return redirect()
                 ->route('marketplace.index')
                 ->with('error', 'Cart is empty!');
+        }
+
+        // Re-check stock: it may have changed since the items were added
+        if ($stockError = $this->validateCartStock($cart)) {
+            return redirect()
+                ->route('marketplace.index')
+                ->with('error', $stockError);
         }
 
         [
@@ -182,6 +246,13 @@ class CartController extends Controller
             return redirect()
                 ->route('marketplace.index')
                 ->with('error', 'Cart is empty!');
+        }
+
+        if ($stockError = $this->validateCartStock($cart)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $stockError,
+            ], 422);
         }
 
         [
@@ -282,6 +353,48 @@ class CartController extends Controller
         //         "Failed to create payment: " . $e->getMessage(),
         //     );
         // }
+    }
+
+    /**
+     * JSON response used when a requested quantity exceeds the available stock.
+     */
+    private function stockExceededResponse(MarketplaceProduct $product)
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $this->stockErrorMessage($product),
+            'stock' => $product->stock,
+        ], 422);
+    }
+
+    private function stockErrorMessage(MarketplaceProduct $product): string
+    {
+        return $product->stock > 0
+            ? "Only {$product->stock} item(s) of {$product->name} left in stock."
+            : "{$product->name} is out of stock.";
+    }
+
+    /**
+     * Verify every cart line against the current stock in the database.
+     * Returns an error message, or null when the whole cart is available.
+     */
+    private function validateCartStock(array $cart): ?string
+    {
+        $products = MarketplaceProduct::whereIn('id', array_keys($cart))->get()->keyBy('id');
+
+        foreach ($cart as $id => $details) {
+            $product = $products->get($id);
+
+            if ($product === null) {
+                return "{$details['name']} is no longer available.";
+            }
+
+            if ($details['quantity'] > $product->stock) {
+                return $this->stockErrorMessage($product);
+            }
+        }
+
+        return null;
     }
 
     /**

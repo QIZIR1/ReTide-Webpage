@@ -33,6 +33,7 @@ class MarketplaceProductTest extends TestCase
             'name',
             'description',
             'price',
+            'stock',
             'image_path',
         ], $product->getFillable());
     }

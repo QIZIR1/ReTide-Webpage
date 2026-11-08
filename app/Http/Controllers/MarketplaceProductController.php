@@ -35,6 +35,7 @@ class MarketplaceProductController extends Controller
             'name' => 'required|min:5|max:100',
             'description' => 'required|min:5|max:3000',
             'price' => 'required|numeric|min:0|max:99999999.99',
+            'stock' => 'nullable|integer|min:0|max:1000000',
             'image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -48,12 +49,19 @@ class MarketplaceProductController extends Controller
             }
         }
 
-        MarketplaceProduct::create([
+        $data = [
             'name' => $request->name,
             'description' => $request->description,
             'price' => $request->price,
             'image_path' => $imagePath,
-        ]);
+        ];
+
+        // When stock is left empty, the database default is used
+        if ($request->filled('stock')) {
+            $data['stock'] = (int) $request->stock;
+        }
+
+        MarketplaceProduct::create($data);
 
         return redirect()->route('admin.marketplace.index')->with('success', 'Product berhasil ditambahkan!');
     }
@@ -89,6 +97,7 @@ class MarketplaceProductController extends Controller
             'name' => 'required|min:5|max:100',
             'description' => 'required|min:5|max:3000',
             'price' => 'required|numeric|min:0|max:99999999.99',
+            'stock' => 'nullable|integer|min:0|max:1000000',
             'image_path' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -107,6 +116,7 @@ class MarketplaceProductController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'price' => $request->price,
+            'stock' => $request->filled('stock') ? (int) $request->stock : $product->stock,
             'image_path' => $imagePath,
         ]);
 

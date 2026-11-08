@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MarketplaceProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
@@ -28,10 +29,23 @@ class MarketplaceFeatureEnhancementTest extends TestCase
         parent::tearDown();
     }
 
+    private function createProduct(array $overrides = []): MarketplaceProduct
+    {
+        return MarketplaceProduct::create(array_merge([
+            'name' => 'Eco Bag',
+            'description' => 'Organic cotton bag',
+            'price' => 75000,
+            'stock' => 10,
+            'image_path' => 'https://res.cloudinary.com/ecobag.jpg',
+        ], $overrides));
+    }
+
     private function cartWithSubtotal150k(): array
     {
+        $product = $this->createProduct();
+
         return [
-            1 => [
+            $product->id => [
                 'name' => 'Eco Bag',
                 'quantity' => 2,
                 'price' => 75000,
@@ -122,5 +136,75 @@ class MarketplaceFeatureEnhancementTest extends TestCase
             ->assertJson(['coupon' => null, 'discount' => 0, 'total' => 150000]);
 
         $this->assertNull(session('coupon'));
+    }
+
+    public function test_cannot_add_product_to_cart_exceeding_available_stock(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+        $product = $this->createProduct(['name' => 'Eco Cup', 'stock' => 2]);
+
+        // Adding up to the available stock is allowed
+        $this->actingAs($user)->postJson(route('cart.add'), ['product_id' => $product->id])->assertStatus(200);
+        $this->actingAs($user)->postJson(route('cart.add'), ['product_id' => $product->id])->assertStatus(200);
+
+        // Third add exceeds stock of 2
+        $this->actingAs($user)
+            ->postJson(route('cart.add'), ['product_id' => $product->id])
+            ->assertStatus(422)
+            ->assertJson([
+                'status' => 'error',
+                'message' => 'Only 2 item(s) of Eco Cup left in stock.',
+                'stock' => 2,
+            ]);
+
+        $this->assertEquals(2, session('cart')[$product->id]['quantity']);
+
+        // Increasing quantity via the +/- endpoint beyond stock is rejected too
+        $this->actingAs($user)
+            ->postJson(route('cart.update'), ['product_id' => $product->id, 'quantity' => 3])
+            ->assertStatus(422);
+
+        // Lowering quantity within stock is fine
+        $this->actingAs($user)
+            ->postJson(route('cart.update'), ['product_id' => $product->id, 'quantity' => 1])
+            ->assertStatus(200)
+            ->assertJson(['quantity' => 1]);
+
+        // Syncing a manipulated quantity from the frontend is rejected
+        $this->actingAs($user)
+            ->postJson(route('cart.sync'), ['cart' => [['id' => $product->id, 'quantity' => 99]]])
+            ->assertStatus(422)
+            ->assertJson(['status' => 'error']);
+
+        $this->assertEquals(1, session('cart')[$product->id]['quantity']);
+    }
+
+    public function test_out_of_stock_product_cannot_be_added_and_checkout_rechecks_stock(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+        $soldOut = $this->createProduct(['name' => 'Eco Straw', 'stock' => 0]);
+
+        $this->actingAs($user)
+            ->postJson(route('cart.add'), ['product_id' => $soldOut->id])
+            ->assertStatus(422)
+            ->assertJson(['message' => 'Eco Straw is out of stock.']);
+
+        // Stock dropped after the item was put in the cart
+        $product = $this->createProduct(['stock' => 5]);
+        session(['cart' => [
+            $product->id => ['name' => 'Eco Bag', 'quantity' => 3, 'price' => 75000, 'image' => 'x.jpg'],
+        ]]);
+        $product->update(['stock' => 1]);
+
+        $this->actingAs($user)
+            ->get(route('cart.checkout'))
+            ->assertRedirect(route('marketplace.index'))
+            ->assertSessionHas('error', 'Only 1 item(s) of Eco Bag left in stock.');
+
+        $this->actingAs($user)
+            ->postJson(route('cart.process'))
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('payments', 0);
     }
 }

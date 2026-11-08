@@ -153,9 +153,17 @@ class CartTest extends TestCase
         $mockSnap = Mockery::mock('alias:\Midtrans\Snap');
         $mockSnap->shouldReceive('getSnapToken')->andReturn('dummy-snap-token');
 
+        // Checkout re-validates stock, so the product must exist in the database
+        $product = MarketplaceProduct::create([
+            'name' => 'Eco Bag',
+            'description' => 'Organic cotton bag',
+            'price' => 75000,
+            'stock' => 10,
+        ]);
+
         // Put some items in the cart
         $cartData = [
-            1 => [
+            $product->id => [
                 'name' => 'Eco Bag',
                 'quantity' => 2,
                 'price' => 75000,
@@ -197,9 +205,17 @@ class CartTest extends TestCase
         $mockSnap = Mockery::mock('alias:\Midtrans\Snap');
         $mockSnap->shouldReceive('getSnapToken')->andReturn('dummy-snap-token');
 
+        // Process re-validates stock, so the product must exist in the database
+        $product = MarketplaceProduct::create([
+            'name' => 'Eco Shoes',
+            'description' => 'Shoes made of recycled plastic',
+            'price' => 500000,
+            'stock' => 10,
+        ]);
+
         // Put some items in the cart
         $cartData = [
-            2 => [
+            $product->id => [
                 'name' => 'Eco Shoes',
                 'quantity' => 1,
                 'price' => 500000,
