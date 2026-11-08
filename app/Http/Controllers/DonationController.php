@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Donation;
 use App\Models\DonationUpdate;
 use App\Models\Payment;
+use App\Services\SecurityAuditService;
 use Illuminate\Http\Request;
 use Midtrans\Config;
 use Midtrans\Snap;
@@ -101,6 +102,12 @@ class DonationController extends Controller
                 ],
             ]);
 
+            SecurityAuditService::log('DONATION_CREATE', [
+                'donation_id' => $donation->id,
+                'order_id' => $orderId,
+                'amount' => $request->amount,
+            ]);
+
             return redirect()->away($redirectUrl);
         } catch (\Exception $e) {
             \Log::error('Midtrans Snap Error (Donation): '.$e->getMessage());
@@ -123,8 +130,19 @@ class DonationController extends Controller
 
     public function adminDestroy(Donation $donation)
     {
+        $donationId = $donation->id;
+        $donationAmount = $donation->amount;
+        $donationDonor = $donation->name;
+
         $donation->delete();
 
-        return redirect()->route('admin.donations.index')->with('success', 'Donasi berhasil dihapus');
+        SecurityAuditService::log('ADMIN_DONATION_DELETE', [
+            'deleted_donation_id' => $donationId,
+            'amount' => $donationAmount,
+            'donor_name' => $donationDonor,
+        ]);
+
+        return redirect()->route('admin.donations.index')
+            ->with('success', 'Data donasi berhasil dihapus.');
     }
 }

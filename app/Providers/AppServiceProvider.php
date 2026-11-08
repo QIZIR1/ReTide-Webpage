@@ -26,5 +26,18 @@ class AppServiceProvider extends ServiceProvider
             config(['view.compiled' => '/tmp/storage/framework/views']);
             URL::forceScheme('https');
         }
+
+        // DevSecOps: Rate Limiting definitions for Brute Force & DoS prevention
+        \Illuminate\Support\Facades\RateLimiter::for('auth-limit', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip());
+        });
+
+        \Illuminate\Support\Facades\RateLimiter::for('donation-limit', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+        });
+
+        \Illuminate\Support\Facades\RateLimiter::for('checkout-limit', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

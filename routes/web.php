@@ -102,10 +102,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 // Guest Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-limit');
 
     Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-limit');
 });
 
 // Authenticated Normal User Routes
@@ -135,7 +135,7 @@ Route::middleware(['auth'])->group(function () {
         // Donation
         Route::get('/donation', [DonationController::class, 'index'])->name('donation.index');
         Route::get('/donation/{donation}/updates', [DonationController::class, 'updates'])->name('donation.updates');
-        Route::post('/donation', [DonationController::class, 'store'])->name('donation.store');
+        Route::post('/donation', [DonationController::class, 'store'])->middleware('throttle:donation-limit')->name('donation.store');
         Route::get('/donation/success', [DonationController::class, 'success'])->name('donation.success');
 
         // Account Page CRUD
@@ -147,7 +147,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
         Route::post('/cart/sync', [CartController::class, 'sync'])->name('cart.sync');
         Route::get('/cart/checkout', [CartController::class, 'checkout'])->name('cart.checkout');
-        Route::post('/cart/process', [CartController::class, 'process'])->name('cart.process');
+        Route::post('/cart/process', [CartController::class, 'process'])->middleware('throttle:checkout-limit')->name('cart.process');
     });
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
