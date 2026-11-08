@@ -14,6 +14,11 @@ class MarketplaceProduct extends Model
         'name',
         'description',
         'price',
+        'stock',
         'image_path',
+    ];
+
+    protected $casts = [
+        'stock' => 'integer',
     ];
 }

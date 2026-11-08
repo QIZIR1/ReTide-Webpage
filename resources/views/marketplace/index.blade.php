@@ -165,17 +165,22 @@
                         
                         <div class="p-6 flex flex-col flex-grow">
                             <h3 class="text-xl font-bold text-white mb-2 group-hover:text-brand transition-colors">{{ $product->name }}</h3>
-                            <p class="text-gray-400 text-sm mb-6 line-clamp-2 flex-grow">{{ $product->description }}</p>
-                            
+                            <p class="text-gray-400 text-sm mb-4 line-clamp-2 flex-grow">{{ $product->description }}</p>
+                            <p class="text-xs mb-4 {{ $product->stock > 0 ? 'text-gray-500' : 'text-red-400' }}">
+                                {{ $product->stock > 0 ? 'Stock: '.$product->stock : 'Out of stock' }}
+                            </p>
+
                             <div class="flex items-center justify-between mt-auto pt-4 border-t border-border">
                                 <span class="text-xl font-bold text-white">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
-                                
-                                <button class="add-to-cart-btn bg-surfaceActive hover:bg-brand text-white hover:text-black w-10 h-10 rounded-full flex items-center justify-center transition-all"
+
+                                <button class="add-to-cart-btn bg-surfaceActive hover:bg-brand text-white hover:text-black w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                     data-id="{{ $product->id }}"
                                     data-name="{{ $product->name }}"
                                     data-price="{{ $product->price }}"
+                                    data-stock="{{ $product->stock }}"
                                     data-icon='<img src="{{ $product->image_path }}" class="w-full h-full object-cover rounded">'
-                                    title="Add to Cart"
+                                    title="{{ $product->stock > 0 ? 'Add to Cart' : 'Out of stock' }}"
+                                    @disabled($product->stock <= 0)
                                 >
                                     <i class="fas fa-plus"></i>
                                 </button>

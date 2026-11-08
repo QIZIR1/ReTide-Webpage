@@ -130,6 +130,15 @@
                 placeholder="" required />
         </div>
         <div>
+            <label for="stock" class="block mb-2.5 text-sm font-medium text-heading">Stock</label>
+            <input type="number" id="stock" name="stock" value="{{ old('stock', $product->stock) }}" min="0" step="1"
+                class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 placeholder:text-body"
+                required />
+            @error('stock')
+                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+            @enderror
+        </div>
+        <div>
             <label for="image_path" class="block mb-2.5 text-sm font-medium text-heading">Image</label>
             <input type="file" id="image_path" name="image_path"
                 class="bg-black border border-default-medium rounded-lg text-heading text-base focus:ring-brand focus:outline-[#7ae0d3] block w-full px-3.5 py-3 shadow-xs placeholder:text-body"

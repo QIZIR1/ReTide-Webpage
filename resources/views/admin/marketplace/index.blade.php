@@ -20,6 +20,7 @@
                     <th class="px-6 py-4">Product</th>
                     <th class="px-6 py-4">Name & Description</th>
                     <th class="px-6 py-4 text-right">Price</th>
+                    <th class="px-6 py-4 text-right">Stock</th>
                     <th class="px-6 py-4">Added On</th>
                     <th class="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -45,6 +46,9 @@
                     <td class="px-6 py-4 text-right">
                         <div class="text-sm font-bold text-primary">Rp {{ number_format($product->price, 0, ',', '.') }}</div>
                     </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="text-sm font-bold {{ $product->stock > 0 ? 'text-white' : 'text-red-400' }}">{{ $product->stock }}</div>
+                    </td>
                     <td class="px-6 py-4 text-sm text-secondary">
                         {{ $product->created_at->format('M d, Y') }}
                     </td>
@@ -67,7 +71,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="px-6 py-16 text-center text-secondary">
+                    <td colspan="6" class="px-6 py-16 text-center text-secondary">
                         <div class="flex flex-col items-center">
                             <i class="fas fa-shopping-bag text-5xl mb-4 opacity-10"></i>
                             <p class="text-lg font-medium mb-1">No products found</p>
