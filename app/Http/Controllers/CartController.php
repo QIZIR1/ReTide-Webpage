@@ -65,6 +65,46 @@ class CartController extends Controller
     }
 
     /**
+     * Apply a promo coupon / discount voucher to the current cart.
+     */
+    public function applyCoupon(Request $request)
+    {
+        $validated = $request->validate([
+            'coupon_code' => ['required', 'string', 'max:50'],
+        ]);
+
+        $cart = session()->get('cart', []);
+
+        if (empty($cart)) {
+            return $this->couponResponse($request, 'error', 'Cart is empty!', 422);
+        }
+
+        $code = strtoupper(trim($validated['coupon_code']));
+        $subtotal = $this->calculateSubtotal($cart);
+        $error = $this->validateCoupon($code, $subtotal);
+
+        if ($error !== null) {
+            session()->forget('coupon');
+
+            return $this->couponResponse($request, 'error', $error, 422);
+        }
+
+        session()->put('coupon', $code);
+
+        return $this->couponResponse($request, 'success', "Coupon {$code} applied!");
+    }
+
+    /**
+     * Remove the applied coupon from the cart.
+     */
+    public function removeCoupon(Request $request)
+    {
+        session()->forget('coupon');
+
+        return $this->couponResponse($request, 'success', 'Coupon removed.');
+    }
+
+    /**
      * Show the checkout page and prepare a Midtrans Snap token.
      */
     public function checkout()
@@ -77,17 +117,13 @@ class CartController extends Controller
                 ->with('error', 'Cart is empty!');
         }
 
-        $totalAmount = 0;
-        $itemDetails = [];
-        foreach ($cart as $id => $details) {
-            $totalAmount += $details['price'] * $details['quantity'];
-            $itemDetails[] = [
-                'id' => (string) $id,
-                'price' => $details['price'],
-                'quantity' => $details['quantity'],
-                'name' => substr($details['name'], 0, 50),
-            ];
-        }
+        [
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'coupon' => $coupon,
+            'total' => $totalAmount,
+            'item_details' => $itemDetails,
+        ] = $this->buildOrderSummary($cart);
 
         // Configure Midtrans
         Config::$serverKey = config('midtrans.server_key');
@@ -132,7 +168,7 @@ class CartController extends Controller
         $payment->snap_token = $snapToken;
         $payment->save();
 
-        return view('checkout', compact('cart', 'totalAmount', 'payment', 'snapToken'));
+        return view('checkout', compact('cart', 'subtotal', 'discount', 'coupon', 'totalAmount', 'payment', 'snapToken'));
     }
 
     /**
@@ -148,18 +184,10 @@ class CartController extends Controller
                 ->with('error', 'Cart is empty!');
         }
 
-        $totalAmount = 0;
-        $itemDetails = [];
-
-        foreach ($cart as $id => $details) {
-            $totalAmount += $details['price'] * $details['quantity'];
-            $itemDetails[] = [
-                'id' => (string) $id,
-                'price' => $details['price'],
-                'quantity' => $details['quantity'],
-                'name' => substr($details['name'], 0, 50),
-            ];
-        }
+        [
+            'total' => $totalAmount,
+            'item_details' => $itemDetails,
+        ] = $this->buildOrderSummary($cart);
 
         // Set Midtrans configuration
         // Set your Merchant Server Key
@@ -254,5 +282,134 @@ class CartController extends Controller
         //         "Failed to create payment: " . $e->getMessage(),
         //     );
         // }
+    }
+
+    /**
+     * Calculate the cart subtotal before any discount.
+     */
+    private function calculateSubtotal(array $cart): float
+    {
+        $subtotal = 0;
+
+        foreach ($cart as $details) {
+            $subtotal += $details['price'] * $details['quantity'];
+        }
+
+        return $subtotal;
+    }
+
+    /**
+     * Validate a coupon code against the cart subtotal.
+     * Returns an error message, or null when the coupon is valid.
+     */
+    private function validateCoupon(string $code, float $subtotal): ?string
+    {
+        $coupon = config("coupons.{$code}");
+
+        if (! is_array($coupon)) {
+            return 'Invalid coupon code.';
+        }
+
+        if (! empty($coupon['expires_at']) && now()->startOfDay()->gt($coupon['expires_at'])) {
+            return 'This coupon has expired.';
+        }
+
+        $minSubtotal = $coupon['min_subtotal'] ?? 0;
+        if ($subtotal < $minSubtotal) {
+            return 'Minimum purchase for this coupon is Rp '.number_format($minSubtotal, 0, ',', '.').'.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Calculate the discount amount (percent or fixed) for a coupon.
+     * The discount never exceeds the subtotal.
+     */
+    private function calculateDiscount(string $code, float $subtotal): float
+    {
+        $coupon = config("coupons.{$code}");
+
+        if ($coupon['type'] === 'percent') {
+            $discount = $subtotal * ($coupon['value'] / 100);
+
+            if (! empty($coupon['max_discount'])) {
+                $discount = min($discount, $coupon['max_discount']);
+            }
+        } else {
+            $discount = $coupon['value'];
+        }
+
+        return (float) min(round($discount), $subtotal);
+    }
+
+    /**
+     * Build subtotal, discount, final total and Midtrans item details for the cart.
+     * The coupon is re-validated server side so a stale session coupon is dropped.
+     */
+    private function buildOrderSummary(array $cart): array
+    {
+        $subtotal = $this->calculateSubtotal($cart);
+        $itemDetails = [];
+
+        foreach ($cart as $id => $details) {
+            $itemDetails[] = [
+                'id' => (string) $id,
+                'price' => $details['price'],
+                'quantity' => $details['quantity'],
+                'name' => substr($details['name'], 0, 50),
+            ];
+        }
+
+        $coupon = session()->get('coupon');
+        $discount = 0;
+
+        if ($coupon !== null && $this->validateCoupon($coupon, $subtotal) !== null) {
+            session()->forget('coupon');
+            $coupon = null;
+        }
+
+        if ($coupon !== null) {
+            $discount = $this->calculateDiscount($coupon, $subtotal);
+
+            // Midtrans requires item_details to sum up to gross_amount,
+            // so the discount is sent as a negative line item.
+            $itemDetails[] = [
+                'id' => 'DISCOUNT-'.$coupon,
+                'price' => -$discount,
+                'quantity' => 1,
+                'name' => 'Coupon '.$coupon,
+            ];
+        }
+
+        return [
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'coupon' => $coupon,
+            'total' => $subtotal - $discount,
+            'item_details' => $itemDetails,
+        ];
+    }
+
+    /**
+     * Respond to coupon actions as JSON (AJAX) or redirect back to checkout.
+     */
+    private function couponResponse(Request $request, string $status, string $message, int $code = 200)
+    {
+        if ($request->expectsJson()) {
+            $cart = session()->get('cart', []);
+            $summary = empty($cart) ? null : $this->buildOrderSummary($cart);
+
+            return response()->json([
+                'status' => $status,
+                'message' => $message,
+                'coupon' => $summary['coupon'] ?? null,
+                'subtotal' => $summary['subtotal'] ?? 0,
+                'discount' => $summary['discount'] ?? 0,
+                'total' => $summary['total'] ?? 0,
+            ], $code);
+        }
+
+        return redirect()->route('cart.checkout')->with($status, $message);
     }
 }
