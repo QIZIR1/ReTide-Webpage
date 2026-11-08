@@ -16,6 +16,9 @@ use App\Http\Controllers\DonationController;
 use App\Http\Controllers\MarketplaceProductController;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HealthCheckController;
+
+Route::get('/api/health', HealthCheckController::class);
 
 /*
 |--------------------------------------------------------------------------

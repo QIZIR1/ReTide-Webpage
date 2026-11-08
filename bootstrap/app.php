@@ -26,6 +26,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
             'not_admin' => RedirectIfAdmin::class,
         ]);
+//penambahan append
+        $middleware->append(\App\Http\Middleware\AssignRequestId::class);
 
         $middleware->validateCsrfTokens(except: [
             '/payment/notification',
