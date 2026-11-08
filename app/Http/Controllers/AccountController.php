@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
 {
@@ -38,7 +39,11 @@ class AccountController extends Controller
             ],
             'notelp' => ['nullable', 'string', 'max:20'],
             'current_password' => ['nullable', 'required_with:new_password'],
-            'new_password' => ['nullable', 'min:8', 'confirmed'],
+            'new_password' => [
+                'nullable',
+                'confirmed',
+                Password::min(8)->mixedCase()->numbers()->symbols(),
+            ],
         ], [
             'username.unique' => 'Nama pengguna ini sudah diambil, silakan gunakan nama lain.',
             'email.unique' => 'Email ini sudah terdaftar.',
