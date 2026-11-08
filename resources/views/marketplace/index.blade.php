@@ -145,12 +145,55 @@
 
     <!-- Products Grid -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div class="flex justify-between items-end mb-12">
+        <div class="flex justify-between items-end mb-8">
             <div>
                 <h2 class="text-3xl font-bold text-white mb-2">Curated Collection</h2>
                 <p class="text-gray-400">Transforming waste into worth.</p>
             </div>
         </div>
+
+        <!-- Filter & Sorting -->
+        @php
+            $hasActiveFilter = $filters['category'] || $filters['min_price'] !== null || $filters['max_price'] !== null || $filters['sort'] !== 'newest';
+            $inputClass = 'w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand';
+        @endphp
+        <form method="GET" action="{{ route('marketplace.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-12" aria-label="Filter products">
+            <div>
+                <label for="filter-category" class="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Kategori</label>
+                <select id="filter-category" name="category" class="{{ $inputClass }}">
+                    <option value="">Semua Kategori</option>
+                    @foreach($categories as $value => $label)
+                        <option value="{{ $value }}" @selected($filters['category'] === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="filter-min-price" class="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Harga Min (Rp)</label>
+                <input id="filter-min-price" type="number" name="min_price" min="0" step="1000" placeholder="0"
+                    value="{{ $filters['min_price'] !== null ? (int) $filters['min_price'] : '' }}" class="{{ $inputClass }}">
+            </div>
+            <div>
+                <label for="filter-max-price" class="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Harga Maks (Rp)</label>
+                <input id="filter-max-price" type="number" name="max_price" min="0" step="1000" placeholder="Tanpa batas"
+                    value="{{ $filters['max_price'] !== null ? (int) $filters['max_price'] : '' }}" class="{{ $inputClass }}">
+            </div>
+            <div>
+                <label for="filter-sort" class="block text-xs uppercase tracking-wider text-gray-500 mb-1.5">Urutkan</label>
+                <select id="filter-sort" name="sort" class="{{ $inputClass }}">
+                    @foreach($sortOptions as $value => $label)
+                        <option value="{{ $value }}" @selected($filters['sort'] === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="submit" class="flex-1 bg-brand hover:bg-brandHover text-black font-semibold rounded-xl px-4 py-2.5 text-sm transition-colors">
+                    <i class="fas fa-filter mr-1"></i> Terapkan
+                </button>
+                @if($hasActiveFilter)
+                    <a href="{{ route('marketplace.index') }}" class="px-4 py-2.5 rounded-xl border border-border text-gray-400 hover:text-white text-sm transition-colors">Reset</a>
+                @endif
+            </div>
+        </form>
 
         @if($products->count() > 0)
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -166,9 +209,15 @@
                         <div class="p-6 flex flex-col flex-grow">
                             <h3 class="text-xl font-bold text-white mb-2 group-hover:text-brand transition-colors">{{ $product->name }}</h3>
                             <p class="text-gray-400 text-sm mb-4 line-clamp-2 flex-grow">{{ $product->description }}</p>
-                            <p class="text-xs mb-4 {{ $product->stock > 0 ? 'text-gray-500' : 'text-red-400' }}">
-                                {{ $product->stock > 0 ? 'Stock: '.$product->stock : 'Out of stock' }}
-                            </p>
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mb-4">
+                                @if($product->category && isset($categories[$product->category]))
+                                    <span class="px-2 py-0.5 rounded-full bg-brand/10 text-brand">{{ $categories[$product->category] }}</span>
+                                @endif
+                                <span class="{{ $product->stock > 0 ? 'text-gray-500' : 'text-red-400' }}">
+                                    {{ $product->stock > 0 ? 'Stock: '.$product->stock : 'Out of stock' }}
+                                </span>
+                                <span class="text-gray-500">Terjual {{ $product->sold_count }}</span>
+                            </div>
 
                             <div class="flex items-center justify-between mt-auto pt-4 border-t border-border">
                                 <span class="text-xl font-bold text-white">Rp {{ number_format($product->price, 0, ',', '.') }}</span>
@@ -192,8 +241,13 @@
         @else
             <div class="text-center py-20 bg-surface rounded-2xl border border-border">
                 <i class="fas fa-box-open text-6xl text-gray-600 mb-4"></i>
-                <h3 class="text-xl font-semibold text-white mb-2">No Products Yet</h3>
-                <p class="text-gray-400">Check back later for our new eco-friendly collection.</p>
+                @if($hasActiveFilter)
+                    <h3 class="text-xl font-semibold text-white mb-2">Tidak ada produk yang cocok</h3>
+                    <p class="text-gray-400">Coba ubah kategori atau rentang harga.</p>
+                @else
+                    <h3 class="text-xl font-semibold text-white mb-2">No Products Yet</h3>
+                    <p class="text-gray-400">Check back later for our new eco-friendly collection.</p>
+                @endif
             </div>
         @endif
     </main>
